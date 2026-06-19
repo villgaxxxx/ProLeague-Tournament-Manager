@@ -22,11 +22,13 @@ namespace FutsalApp.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IHubContext<MatchHub> _hubContext; // 👈 تعريف متغير الـ Hub
+        private readonly IConfiguration _configuration;
 
-        public MatchesController(AppDbContext context, IHubContext<MatchHub> hubContext)
+        public MatchesController(AppDbContext context, IHubContext<MatchHub> hubContext, IConfiguration configuration)
         {
             _context = context;
             _hubContext = hubContext;
+            _configuration = configuration; // 👈 الربط الجديد
         }
 
         [HttpGet]
@@ -363,7 +365,7 @@ namespace FutsalApp.Controllers
             try
             {
                 // ⚠️ ضع مفتاح الـ API الخاص بك هنا
-                string apiKey = "YOUR_GEMINI_API_KEY_HERE";
+                string apiKey = _configuration["Gemini:ApiKey"];
                 string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={apiKey}";
 
                 // هندسة الأوامر (Prompt Engineering) للـ AI
