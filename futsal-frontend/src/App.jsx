@@ -1,18 +1,18 @@
 import { useState, useEffect } from 'react';
-import Standings from './components/Standings';
-import RegisterTeam from './components/RegisterTeam';
-import Matches from './components/Matches';
-import AddMatch from './components/AddMatch';
-import MatchResults from './components/MatchResults';
-import Login from './components/Login';
-import TopScorers from './components/TopScorers';
-import AddPlayer from './components/AddPlayer';
-import ManageTeam from './components/ManageTeam';
-import TeamsList from './components/TeamsList';
-import Notifications from './components/Notifications';
-import TournamentManager from './components/TournamentManager';
-import AdminSchedule from './components/AdminSchedule';
-import KnockoutBracket from './components/KnockoutBracket';
+import Standings from './Components/Standings';
+import RegisterTeam from './Components/RegisterTeam';
+import Matches from './Components/Matches';
+import AddMatch from './Components/AddMatch';
+import MatchResults from './Components/MatchResults';
+import Login from './Components/Login';
+import TopScorers from './Components/TopScorers';
+import AddPlayer from './Components/AddPlayer';
+import ManageTeam from './Components/ManageTeam';
+import TeamsList from './Components/TeamsList';
+import Notifications from './Components/Notifications';
+import TournamentManager from './Components/TournamentManager';
+import AdminSchedule from './Components/AdminSchedule';
+import KnockoutBracket from './Components/KnockoutBracket';
 
 function App() {
     const [activeTab, setActiveTab] = useState('standings');
