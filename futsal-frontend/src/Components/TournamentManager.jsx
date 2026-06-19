@@ -1,0 +1,139 @@
+import { useState, useEffect } from 'react';
+
+export default function TournamentManager() {
+    const [settings, setSettings] = useState({ isHomeAway: false, groupSize: 4, enableBestThirds: false, isGroupStageDrawn: false });
+    const [groups, setGroups] = useState([]);
+    const isAdmin = !!localStorage.getItem('adminToken');
+
+    const fetchSettingsAndGroups = () => {
+        fetch('http://proleague-api.somee.com/api/Tournament/settings')
+            .then(res => res.json())
+            .then(data => setSettings(data));
+
+        fetch('http://proleague-api.somee.com/api/Tournament/groups')
+            .then(res => res.json())
+            .then(data => {
+                const groupsData = Array.isArray(data) ? data : (data?.$values || []);
+                setGroups(groupsData);
+            });
+    };
+
+    useEffect(() => { fetchSettingsAndGroups(); }, []);
+
+    const handleSaveSettings = async () => {
+        const token = localStorage.getItem('adminToken');
+        const res = await fetch('http://proleague-api.somee.com/api/Tournament/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(settings)
+        });
+        const data = await res.json();
+        alert(data.message || data.Message);
+    };
+
+    const handleDrawGroups = async () => {
+        const confirmDraw = window.confirm("هل أنت متأكد؟ سحب القرعة سيوزع الفرق عشوائياً ولن تتمكن من تغيير حجم المجموعة بعدها!");
+        if (!confirmDraw) return;
+
+        const token = localStorage.getItem('adminToken');
+        const res = await fetch('http://proleague-api.somee.com/api/Tournament/draw-groups', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            alert("تم سحب القرعة بنجاح! 🎲");
+            fetchSettingsAndGroups(); // تحديث الشاشة لعرض المجموعات
+        } else {
+            alert(data.message || data.Message);
+        }
+    };
+
+    if (!isAdmin && !settings.isGroupStageDrawn) {
+        return <div className="text-center mt-10 font-bold text-xl text-gray-500">لم يتم سحب قرعة البطولة بعد ⏳</div>;
+    }
+
+    return (
+        <div className="max-w-5xl mx-auto mt-8 px-4" dir="rtl">
+            <h2 className="text-3xl font-black text-center mb-8 text-blue-900">إدارة نظام البطولة 🏆</h2>
+
+            {/* لوحة تحكم الإدمن */}
+            {isAdmin && (
+                <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-8">
+                    <h3 className="text-xl font-bold mb-4 text-gray-800 border-b pb-2">إعدادات وقواعد المسابقة ⚙️</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                            <span className="font-bold text-gray-700">نظام ذهاب وإياب</span>
+                            <input type="checkbox" checked={settings.isHomeAway} onChange={e => setSettings({...settings, isHomeAway: e.target.checked})} className="w-5 h-5 cursor-pointer"/>
+                        </div>
+
+                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                            <span className="font-bold text-gray-700">تأهيل أفضل ثوالث</span>
+                            <input type="checkbox" checked={settings.enableBestThirds} onChange={e => setSettings({...settings, enableBestThirds: e.target.checked})} className="w-5 h-5 cursor-pointer"/>
+                        </div>
+
+                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
+                            <span className="font-bold text-gray-700">فرق المجموعة</span>
+                            <select 
+                                value={settings.groupSize} 
+                                onChange={e => setSettings({...settings, groupSize: parseInt(e.target.value)})}
+                                disabled={settings.isGroupStageDrawn} // مقفول لو القرعة اتعملت
+                                className="border rounded p-1 font-bold outline-none"
+                            >
+                                <option value={3}>3 فرق</option>
+                                <option value={4}>4 فرق</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                        <button onClick={handleSaveSettings} className="flex-1 bg-gray-800 text-white font-bold py-2 rounded hover:bg-black transition">
+                            حفظ الإعدادات 💾
+                        </button>
+                        
+                        {!settings.isGroupStageDrawn ? (
+                            <button onClick={handleDrawGroups} className="flex-1 bg-green-600 text-white font-bold py-2 rounded hover:bg-green-700 transition shadow-lg animate-pulse">
+                                إجراء القرعة العشوائية 🎲
+                            </button>
+                        ) : (
+                            <button disabled className="flex-1 bg-gray-300 text-gray-600 font-bold py-2 rounded cursor-not-allowed">
+                                تم سحب القرعة بالفعل ✅
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* عرض المجموعات */}
+            {settings.isGroupStageDrawn && (
+                <div>
+                    <h3 className="text-2xl font-black text-center mb-6 text-gray-800">نتائج القرعة والمجموعات 📋</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {groups.map((group, idx) => {
+                            const teamsArray = Array.isArray(group.teams) ? group.teams : (group.teams?.$values || []);
+                            return (
+                                <div key={idx} className="bg-white rounded-xl shadow-lg overflow-hidden border-t-8 border-blue-800">
+                                    <div className="bg-gray-100 text-center py-3 border-b border-gray-200">
+                                        <h4 className="text-xl font-black text-blue-900">المجموعة {group.groupName || group.GroupName}</h4>
+                                    </div>
+                                    <ul className="divide-y divide-gray-100">
+                                        {teamsArray.map((team, tIdx) => (
+                                            <li key={team.id || team.Id} className="p-4 flex items-center gap-3 hover:bg-blue-50 transition">
+                                                <span className="w-6 h-6 bg-blue-100 text-blue-800 rounded-full flex justify-center items-center font-bold text-sm">
+                                                    {tIdx + 1}
+                                                </span>
+                                                <span className="font-bold text-gray-800">{team.name || team.Name}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
