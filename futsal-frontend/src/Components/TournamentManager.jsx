@@ -6,11 +6,11 @@ export default function TournamentManager() {
     const isAdmin = !!localStorage.getItem('adminToken');
 
     const fetchSettingsAndGroups = () => {
-        fetch('https://proleague-api.somee.com/api/Tournament/settings')
+        fetch('/api/Tournament/settings')
             .then(res => res.json())
             .then(data => setSettings(data));
 
-        fetch('https://proleague-api.somee.com/api/Tournament/groups')
+        fetch('/api/Tournament/groups')
             .then(res => res.json())
             .then(data => {
                 const groupsData = Array.isArray(data) ? data : (data?.$values || []);
@@ -22,7 +22,7 @@ export default function TournamentManager() {
 
     const handleSaveSettings = async () => {
         const token = localStorage.getItem('adminToken');
-        const res = await fetch('https://proleague-api.somee.com/api/Tournament/settings', {
+        const res = await fetch('/api/Tournament/settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(settings)
@@ -36,7 +36,7 @@ export default function TournamentManager() {
         if (!confirmDraw) return;
 
         const token = localStorage.getItem('adminToken');
-        const res = await fetch('https://proleague-api.somee.com/api/Tournament/draw-groups', {
+        const res = await fetch('/api/Tournament/draw-groups', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });

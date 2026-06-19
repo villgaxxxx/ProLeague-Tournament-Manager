@@ -8,19 +8,19 @@ export default function Leaderboard() {
 
     useEffect(() => {
         // 1. جلب الفرق
-        fetch('https://proleague-api.somee.com/api/teams')
+        fetch('/api/teams')
             .then(res => res.json())
             .then(data => setTeams(Array.isArray(data) ? data : data?.$values || []))
             .catch(err => console.error(err));
 
         // 2. جلب إعدادات البطولة
-        fetch('https://proleague-api.somee.com/api/Tournament/settings')
+        fetch('/api/Tournament/settings')
             .then(res => res.json())
             .then(data => {
                 setSettings(data);
                 // لو أوبشن أفضل ثوالث شغال، نجيب جدول الثوالث
                 if (data.enableBestThirds || data.EnableBestThirds) {
-                    fetch('https://proleague-api.somee.com/api/Tournament/best-thirds')
+                    fetch('/api/Tournament/best-thirds')
                         .then(r => r.json())
                         .then(thirdsData => setBestThirds(Array.isArray(thirdsData) ? thirdsData : thirdsData?.$values || []));
                 }

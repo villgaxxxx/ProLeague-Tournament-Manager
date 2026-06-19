@@ -8,7 +8,7 @@ export default function ManageTeam() {
 
     // 1. جلب الفرق أول ما الشاشة تفتح
     useEffect(() => {
-        fetch('https://proleague-api.somee.com/api/teams')
+        fetch('/api/teams')
             .then(res => res.json())
             .then(data => setTeams(data))
             .catch(err => console.error("مشكلة في جلب الفرق:", err));
@@ -24,7 +24,7 @@ export default function ManageTeam() {
     const fetchTeamPlayers = async (teamId) => {
         setLoadingPlayers(true);
         try {
-            const response = await fetch(`https://proleague-api.somee.com/api/Players/team/${teamId}`);
+            const response = await fetch(`/api/Players/team/${teamId}`);
             if (response.ok) {
                 const data = await response.json();
                 setPlayers(data);
@@ -39,7 +39,7 @@ export default function ManageTeam() {
     const handleAddGoal = async (playerId, playerName) => {
         const token = localStorage.getItem('adminToken');
         try {
-            const response = await fetch(`https://proleague-api.somee.com/api/Players/${playerId}/addgoal`, {
+            const response = await fetch(`/api/Players/${playerId}/addgoal`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`
