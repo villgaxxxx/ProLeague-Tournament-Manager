@@ -4,7 +4,7 @@ export default function Notifications() {
     const [notifications, setNotifications] = useState([]);
 
     useEffect(() => {
-        fetch('http://proleague-api.somee.com/api/Notifications')
+        fetch('https://proleague-api.somee.com/api/Notifications')
             .then(res => res.json())
             .then(data => setNotifications(data))
             .catch(err => console.error(err));
