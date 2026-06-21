@@ -113,6 +113,7 @@ export default function Matches() {
             return;
         }
 
+
         const confirmFinish = window.confirm("هل أنت متأكد من إنهاء المباراة بالنتيجة الحالية؟ 🛑");
         if (!confirmFinish) return;
 
@@ -215,6 +216,7 @@ export default function Matches() {
                                                                 <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'red-card')} className="bg-red-600 px-2 py-1 rounded text-xs">🟥</button>
                                                                 <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'blue-card')} className="bg-blue-600 px-2 py-1 rounded text-xs" title="طرد أخلاقي">🟦</button>
                                                                 <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'player-goal')} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">⚽</button>
+                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'remove-goal')} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">-⚽</button>
                                                             </div>
                                                         )}
                                                     </div>
@@ -235,6 +237,7 @@ export default function Matches() {
                                                                 <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'red-card')} className="bg-red-600 px-2 py-1 rounded text-xs">🟥</button>
                                                                 <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'blue-card')} className="bg-blue-600 px-2 py-1 rounded text-xs" title="طرد أخلاقي">🟦</button>
                                                                 <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'player-goal')} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">⚽</button>
+                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'remove-goal')} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">-⚽</button>
                                                             </div>
                                                         )}
                                                     </div>

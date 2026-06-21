@@ -102,7 +102,7 @@ export default function TeamsList() {
                                         {players.length === 0 ? (
                                             <p className="text-gray-500 text-center py-2 text-sm font-bold">لا يوجد لاعبين مسجلين في هذا الفريق بعد.</p>
                                         ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2">
                                                 {players.map((player, idx) => (
                                                     <div 
                                                         key={player.id || player.Id} 
