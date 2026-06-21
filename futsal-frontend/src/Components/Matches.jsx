@@ -18,24 +18,30 @@ export default function Matches({ setActiveTab }) {
     }, [fetchMatches]);
 
     useEffect(() => {
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl("/matchHub")
-            .withAutomaticReconnect()
-            .build();
+    // 1. استخدام الرابط الكامل للباك إند
+    const backendUrl = "http://proleague-api.somee.com/matchHub"; // ⚠️ حط رابط السيرفر بتاعك هنا
+    
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl(backendUrl)
+        .withAutomaticReconnect() // بيرجع يتصل لوحده لو النت فصل
+        .build();
 
-        connection.start()
-            .then(() => console.log("متصل بنجاح بالسيرفر لايف! ⚡"))
-            .catch(err => console.error("SignalR Connection Error: ", err));
+    // 2. تشغيل الاتصال
+    connection.start()
+        .then(() => console.log("متصل بنجاح بالسيرفر لايف! ⚡"))
+        .catch(err => console.error("SignalR Connection Error: ", err));
 
-        connection.on("ReceiveMatchUpdate", () => {
-            console.log("إشارة تحديث وصلت من السيرفر! 📡");
-            fetchMatches();
-        });
+    // 3. استقبال الإشارة من الباك إند وتحديث الداتا
+    connection.on("ReceiveMatchUpdate", () => {
+        console.log("إشارة تحديث وصلت من السيرفر! 📡");
+        fetchMatches(); // استدعاء الداتا الجديدة
+    });
 
-        return () => {
-            connection.stop();
-        };
-    }, [fetchMatches]);
+    // 4. 🔥 التنظيف: قفل الاتصال لما اليوزر يطلع من الشاشة عشان منستهلكش موارد السيرفر
+    return () => {
+        connection.stop();
+    };
+}, []); // ⚠️ متنساش الأقواس الفاضية دي عشان الاتصال يشتغل مرة واحدة بس
 
     // دالة بدء المباراة (كانت ناقصة عندك وضفناها)
     const handleStartMatch = async (id) => {
