@@ -150,8 +150,8 @@ function App() {
 
             {/* الجزء الخاص بعرض الشاشات */}
             <div className="mt-6 p-4 max-w-5xl mx-auto">
-                {activeTab === 'standings' && <Standings />}
-                {activeTab === 'matches' && <Matches />}
+                {activeTab === 'standings' && <Standings setActiveTab={setActiveTab} />}
+                {activeTab === 'matches' && <Matches setActiveTab={setActiveTab} />}
                 {activeTab === 'addMatch' && <AddMatch />}
                 {activeTab === 'results' && <MatchResults />}
                 {activeTab === 'register' && <RegisterTeam />}

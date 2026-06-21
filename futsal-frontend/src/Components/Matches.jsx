@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as signalR from "@microsoft/signalr";
 
-export default function Matches() {
+export default function Matches({ setActiveTab }) {
     const [matches, setMatches] = useState([]);
     const [champion, setChampion] = useState(null);
     const isAdmin = !!localStorage.getItem('adminToken');
@@ -319,7 +319,7 @@ export default function Matches() {
                                 👑 {champion} 👑
                             </div>
                             <p className="text-lg font-bold text-yellow-300 mb-6">ألف مبروك للاعبين وللجماهير هذا الإنجاز التاريخي! 🎆</p>
-                            <button onClick={() => setChampion(null); setActiveTab('standings')}  className="bg-gradient-to-r from-gray-800 to-gray-700 hover:from-black hover:to-gray-900 text-white font-black px-8 py-3 rounded-xl border border-gray-600 transition shadow-lg w-full">إغلاق والعودة للوحة التحكم ✖️</button>
+                            <button onClick={() => {setChampion(null); setActiveTab('standings')}}  className="bg-gradient-to-r from-gray-800 to-gray-700 hover:from-black hover:to-gray-900 text-white font-black px-8 py-3 rounded-xl border border-gray-600 transition shadow-lg w-full">إغلاق والعودة للوحة التحكم ✖️</button>
                         </div>
                     </div>
                 </div>
