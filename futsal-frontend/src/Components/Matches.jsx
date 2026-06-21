@@ -19,7 +19,7 @@ export default function Matches({ setActiveTab }) {
 
     useEffect(() => {
     // 1. استخدام الرابط الكامل للباك إند
-    const backendUrl = "http://proleague-api.somee.com/matchHub"; // ⚠️ حط رابط السيرفر بتاعك هنا
+    const backendUrl = "https://proleague-api.somee.com/matchHub"; // ⚠️ حط رابط السيرفر بتاعك هنا
     
     const connection = new signalR.HubConnectionBuilder()
         .withUrl(backendUrl)
