@@ -13,6 +13,7 @@ import Notifications from './Components/Notifications';
 import TournamentManager from './Components/TournamentManager';
 import AdminSchedule from './Components/AdminSchedule';
 import KnockoutBracket from './Components/KnockoutBracket';
+import TeamsSummary from "./Components/TeamsSummary";
 
 function App() {
     const [activeTab, setActiveTab] = useState('standings');
@@ -125,6 +126,7 @@ function App() {
                             <button onClick={() => handleTabClick('manageTeam')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'manageTeam' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>إدارة الفرق 📋</button>
                             <button onClick={() => handleTabClick('tournament')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'tournament' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>إدارة البطولة والقرعة 🏆</button>
                             <button onClick={() => handleTabClick('adminSch')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'tournament' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>إدارة المباريات ⚽</button>
+                            <button onClick={() => setActiveTab('teams-summary')} className={`px-4 py-2 font-bold rounded ${activeTab === 'teams-summary' ? 'bg-teal-600 text-white' : 'bg-gray-200 text-gray-800'}`}>  كشف الفرق واللاعبين 📋</button>
                             {/* زرار إعادة ضبط البطولة */}
                             <button 
                                 onClick={handleResetTournament} 
@@ -162,6 +164,7 @@ function App() {
                 {activeTab === 'tournament' && <TournamentManager />}
                 {activeTab === 'adminSch' && <AdminSchedule />}
                 {activeTab === 'knockouts' && <KnockoutBracket />}
+                {activeTab === 'teams-summary' && <TeamsSummary />}
             </div>
 
         </div>
