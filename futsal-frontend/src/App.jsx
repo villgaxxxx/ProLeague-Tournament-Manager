@@ -167,6 +167,13 @@ function App() {
                 {activeTab === 'teams-summary' && <TeamsSummary />}
             </div>
 
+            {/* Copyright Footer */}
+<footer className="mt-8 py-4 text-center text-gray-500 text-sm border-t border-gray-200/60 w-full">
+  <p>
+    &copy; {new Date().getFullYear()} <span className="font-bold text-gray-800 tracking-wide">CodeVerse</span>. All rights reserved.
+  </p>
+</footer>
+
         </div>
     );
 }
