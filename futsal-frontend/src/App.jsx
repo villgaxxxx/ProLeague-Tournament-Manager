@@ -167,13 +167,12 @@ function App() {
                 {activeTab === 'teams-summary' && <TeamsSummary />}
             </div>
 
-            {/* الفوتر الإجباري (Fixed) */}
-            <footer className="fixed bottom-0 left-0 w-full bg-white py-3 text-center text-gray-500 text-sm border-t border-gray-200 z-[9999] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"><p>
-                &copy; {new Date().getFullYear()} <span className="font-bold text-gray-800 tracking-wide">CodeVerse</span>. All rights reserved.</p>
-            </footer>
-
-            {/* ديف فاضي عشان الفوتر ميغطيش على آخر محتوى في الصفحة */}
-            <div className="h-16"></div>
+            {/* Copyright Footer */}
+<footer className="mt-8 py-4 text-center text-gray-500 text-sm border-t border-gray-200/60 w-full">
+  <p>
+    &copy; {new Date().getFullYear()} <span className="font-bold text-gray-800 tracking-wide">CodeVerse</span>. All rights reserved.
+  </p>
+</footer>
 
         </div>
     );
