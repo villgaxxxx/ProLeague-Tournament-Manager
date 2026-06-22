@@ -18,32 +18,27 @@ export default function Matches({ setActiveTab }) {
     }, [fetchMatches]);
 
     useEffect(() => {
-    // 1. استخدام الرابط الكامل للباك إند
-    const backendUrl = "/matchHub"; // رابط السيرفر
-    
-    const connection = new signalR.HubConnectionBuilder()
-        .withUrl(backendUrl)
-        .withAutomaticReconnect() // بيرجع يتصل لوحده لو النت فصل
-        .build();
+        const backendUrl = "/matchHub"; 
+        
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl(backendUrl)
+            .withAutomaticReconnect()
+            .build();
 
-    // 2. تشغيل الاتصال
-    connection.start()
-        .then(() => console.log("متصل بنجاح بالسيرفر لايف! ⚡"))
-        .catch(err => console.error("SignalR Connection Error: ", err));
+        connection.start()
+            .then(() => console.log("متصل بنجاح بالسيرفر لايف! ⚡"))
+            .catch(err => console.error("SignalR Connection Error: ", err));
 
-    // 3. استقبال الإشارة من الباك إند وتحديث الداتا
-    connection.on("ReceiveMatchUpdate", () => {
-        console.log("إشارة تحديث وصلت من السيرفر! 📡");
-        fetchMatches(); // استدعاء الداتا الجديدة
-    });
+        connection.on("ReceiveMatchUpdate", () => {
+            console.log("إشارة تحديث وصلت من السيرفر! 📡");
+            fetchMatches(); 
+        });
 
-    // 4.  التنظيف: قفل الاتصال لما اليوزر يطلع من الشاشة عشان منستهلكش موارد السيرفر
-    return () => {
-        connection.stop();
-    };
-}, []); //  الأقواس الفاضية دي عشان الاتصال يشتغل مرة واحدة بس
+        return () => {
+            connection.stop();
+        };
+    }, []); 
 
-    //دالة بدء المباراة 
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');
         await fetch(`/api/Matches/${id}/start`, {
@@ -119,7 +114,6 @@ export default function Matches({ setActiveTab }) {
             return;
         }
 
-
         const confirmFinish = window.confirm("هل أنت متأكد من إنهاء المباراة بالنتيجة الحالية؟ 🛑");
         if (!confirmFinish) return;
 
@@ -134,178 +128,223 @@ export default function Matches({ setActiveTab }) {
         fetchMatches();
     };
 
-    // تقسيم المباريات لجارية ومنتهية
-    const upcomingMatches = matches.filter(m => !(m.isFinished === true || m.IsFinished === true));
-    const finishedMatches = matches.filter(m => m.isFinished === true || m.IsFinished === true);
+    // 🔥 تجميع المباريات حسب رقم الجولة
+    const matchesByRound = matches.reduce((acc, match) => {
+        const type = match.matchType || match.MatchType;
+        let roundKey = "";
+
+        // لو أدوار إقصائية (خروج مغلوب) نحطها في قسم لوحدها
+        if (type !== "Group" && type !== undefined) {
+            roundKey = "الأدوار الإقصائية 🏆";
+        } else {
+            // لو مجموعات، نقسمها بالجولات
+            const round = match.roundNumber || match.RoundNumber || 1;
+            roundKey = `الجولة ${round}`;
+        }
+
+        if (!acc[roundKey]) acc[roundKey] = [];
+        acc[roundKey].push(match);
+        return acc;
+    }, {});
 
     return (
         <div className="max-w-5xl mx-auto mt-8 px-4 mb-16" dir="rtl">
-            
-            {/* القسم الأول: المباريات الجارية والقادمة */}
-            <h2 className="text-3xl font-black text-center mb-6 text-gray-800">مباريات اليوم 🔴</h2>
-            {upcomingMatches.length === 0 ? (
-                <p className="text-center text-gray-500 font-bold mb-10">لا توجد مباريات جارية أو مجدولة حالياً.</p>
+            <h2 className="text-3xl font-black text-center mb-10 text-gray-800">جدول مباريات البطولة 🗓️</h2>
+
+            {Object.keys(matchesByRound).length === 0 ? (
+                <p className="text-center text-gray-500 font-bold mb-10 text-xl">لم يتم سحب القرعة أو توليد المباريات بعد.</p>
             ) : (
-                <div className="grid gap-6 mb-12">
-                    {upcomingMatches.map(match => {
-                        const t1Players = Array.isArray(match.team1?.players) ? match.team1.players : (match.team1?.players?.$values || []);
-                        const t2Players = Array.isArray(match.team2?.players) ? match.team2.players : (match.team2?.players?.$values || []);
+                // لف على كل الجولات وارسم البلوكات
+                Object.keys(matchesByRound).map(roundKey => (
+                    <div key={roundKey} className="mb-14">
+                        
+                        {/* عنوان الجولة */}
+                        <div className="flex items-center justify-center mb-8">
+                            <h3 className="text-2xl font-black bg-blue-950 text-white px-10 py-3 rounded-full shadow-lg border-4 border-blue-100">
+                                {roundKey}
+                            </h3>
+                        </div>
 
-                        const cardBg = match.isPostponed ? 'bg-gray-100 border-gray-400 opacity-80' : 
-                                      match.isPlaying ? 'bg-white border-red-500 shadow-red-50' : 'bg-white border-blue-500';
+                        <div className="grid gap-6">
+                            {matchesByRound[roundKey].map(match => {
+                                const isFinished = match.isFinished === true || match.IsFinished === true;
 
-                        return (
-                            <div key={match.id} className={`p-6 rounded-xl shadow-lg border-r-8 flex flex-col items-center transition-all ${cardBg}`}>
-                                <div className="text-sm text-gray-500 mb-2 bg-gray-200 px-4 py-1 rounded-full font-bold">
-                                    {new Date(match.matchDate).toLocaleString('ar-EG', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                </div>
+                                // ----------------------------------------------------
+                                // 1. كارت المباراة المنتهية (نتائج وتحليل الذكاء الاصطناعي)
+                                // ----------------------------------------------------
+                                if (isFinished) {
+                                    const pen1 = match.team1PenaltiesScore ?? match.Team1PenaltiesScore;
+                                    const pen2 = match.team2PenaltiesScore ?? match.Team2PenaltiesScore;
 
-                                {match.isPostponed && (
-                                    <div className="bg-red-100 text-red-800 px-4 py-2 rounded-lg font-black mt-2 text-center border border-red-300">
-                                        🚫 المباراة مؤجلة: {match.postponeReason}
-                                    </div>
-                                )}
+                                    return (
+                                        <div key={match.id || match.Id} className="bg-white p-6 rounded-xl shadow-md border-r-8 border-gray-400 flex flex-col transition-all hover:shadow-lg relative overflow-hidden">
+                                            {/* اسم المجموعة فوق الماتش */}
+                                            {(match.groupName || match.GroupName) && (
+                                                <div className="absolute top-0 left-0 bg-gray-200 text-gray-700 px-3 py-1 text-xs font-bold rounded-br-lg">
+                                                    المجموعة {match.groupName || match.GroupName}
+                                                </div>
+                                            )}
 
-                                <div className="flex justify-between items-center w-full mt-4 px-4">
-                                    <span className={`text-2xl font-black w-1/3 text-center ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
-                                        {match.team1?.name || match.Team1?.Name || "فريق 1"}
-                                    </span>
-                                    
-                                    {match.isPlaying ? (
-                                        <div className="flex items-center gap-3 bg-red-600 text-white px-5 py-2 rounded-xl font-mono text-3xl font-black shadow-md animate-pulse">
-                                            <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
-                                        </div>
-                                    ) : (
-                                        <span className="text-gray-400 font-black text-xl bg-gray-200 px-4 py-1 rounded-lg">VS</span>
-                                    )}
-
-                                    <span className={`text-2xl font-black w-1/3 text-center ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
-                                        {match.team2?.name || match.Team2?.Name || "فريق 2"}
-                                    </span>
-                                </div>
-
-                                {match.isPlaying && (
-                                    <div className="mt-4 text-red-600 font-black text-sm flex items-center gap-2 bg-red-50 px-3 py-1 rounded-full border border-red-200">
-                                        <span className="w-2.5 h-2.5 bg-red-600 rounded-full animate-ping"></span>مباشر
-                                    </div>
-                                )}
-
-                                {isAdmin && !match.isPlaying && (
-                                    <div className="mt-6 flex gap-4 w-full justify-center border-t pt-4">
-                                        <button onClick={() => handleStartMatch(match.id)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow">
-                                            ▶️ بدء المباراة
-                                        </button>
-                                        {!match.isPostponed && (
-                                            <button onClick={() => handlePostponeMatch(match.id)} className="bg-yellow-500 text-yellow-900 px-6 py-2 rounded-lg font-bold hover:bg-yellow-600 transition shadow">
-                                                ⏸️ تأجيل
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-
-                                {isAdmin && match.isPlaying && (
-                                    <div className="mt-6 w-full border-t border-gray-100 pt-6">
-                                        <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4">سجل الأهداف والكروت 👇</h4>
-                                        <div className="flex flex-col md:flex-row gap-4 w-full">
-                                            
-                                            {/* الفريق الأول */}
-                                            <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
-                                                {t1Players.map(player => (
-                                                    <div key={player.id || player.Id} className={`flex items-center justify-between p-2 rounded-lg shadow-sm border ${player.isSuspended ? 'bg-red-50 opacity-75' : 'bg-white'}`}>
-                                                        <span className="font-bold text-sm text-gray-800 flex-1">
-                                                            {player.name || player.Name}
-                                                            {player.isSuspended && <span className="text-red-600 mr-2 text-xs">🚫 ({player.suspendedMatchesLeft} ماتش)</span>}
-                                                        </span>
-                                                        {!player.isSuspended && (
-                                                            <div className="flex gap-1">
-                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'yellow-card')} className="bg-yellow-400 px-2 py-1 rounded text-xs">🟨</button>
-                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'red-card')} className="bg-red-600 px-2 py-1 rounded text-xs">🟥</button>
-                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'blue-card')} className="bg-blue-600 px-2 py-1 rounded text-xs" title="طرد أخلاقي">🟦</button>
-                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'player-goal')} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">⚽</button>
-                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'remove-goal')} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">-⚽</button>
-                                                            </div>
-                                                        )}
+                                            <div className="flex justify-between items-center w-full px-4 mt-2">
+                                                <span className="text-xl font-black w-1/3 text-center text-gray-700">{match.team1?.name || match.Team1?.Name}</span>
+                                                <div className="flex flex-col items-center">
+                                                    <div className="flex items-center gap-3 bg-gray-100 text-gray-800 px-5 py-2 rounded-xl font-mono text-2xl font-black shadow-inner">
+                                                        <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
                                                     </div>
-                                                ))}
+                                                    {pen1 !== null && pen1 !== undefined && (
+                                                        <span className="text-xs font-bold text-orange-600 mt-1">ترجيح: ({pen1}) - ({pen2})</span>
+                                                    )}
+                                                </div>
+                                                <span className="text-xl font-black w-1/3 text-center text-gray-700">{match.team2?.name || match.Team2?.Name}</span>
                                             </div>
 
-                                            {/* الفريق الثاني */}
-                                            <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
-                                                {t2Players.map(player => (
-                                                    <div key={player.id || player.Id} className={`flex items-center justify-between p-2 rounded-lg shadow-sm border ${player.isSuspended ? 'bg-red-50 opacity-75' : 'bg-white'}`}>
-                                                        <span className="font-bold text-sm text-gray-800 flex-1">
-                                                            {player.name || player.Name}
-                                                            {player.isSuspended && <span className="text-red-600 mr-2 text-xs">🚫 ({player.suspendedMatchesLeft} ماتش)</span>}
-                                                        </span>
-                                                        {!player.isSuspended && (
-                                                            <div className="flex gap-1">
-                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'yellow-card')} className="bg-yellow-400 px-2 py-1 rounded text-xs">🟨</button>
-                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'red-card')} className="bg-red-600 px-2 py-1 rounded text-xs">🟥</button>
-                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'blue-card')} className="bg-blue-600 px-2 py-1 rounded text-xs" title="طرد أخلاقي">🟦</button>
-                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'player-goal')} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">⚽</button>
-                                                                <button onClick={() => actionPlayer(match.id, player.id || player.Id, 'remove-goal')} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">-⚽</button>
-                                                            </div>
-                                                        )}
+                                            {/* 🤖 تعليق الذكاء الاصطناعي */}
+                                            {(match.matchSummary || match.MatchSummary) && (
+                                                <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group">
+                                                    <div className="absolute -left-4 -top-4 text-indigo-100 opacity-50 text-6xl transform -rotate-12 transition group-hover:scale-110 group-hover:rotate-0 duration-300">🎙️</div>
+                                                    <div className="flex items-center gap-2 mb-2 relative z-10">
+                                                        <span className="text-xl">🤖</span>
+                                                        <span className="text-sm font-black text-indigo-800 tracking-wide uppercase">تحليل المعلق الذكي (AI):</span>
                                                     </div>
-                                                ))}
-                                            </div>
-
-                                        </div>
-                                        <button onClick={() => handleFinishMatch(match.id)} className="w-64 mx-auto block bg-red-600 text-white px-8 py-3 rounded-xl font-black hover:bg-red-700 transition shadow-lg mt-6">
-                                            صافرة النهاية 🛑
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* القسم الثاني: النتائج والمعلق الذكي */}
-            {finishedMatches.length > 0 && (
-                <>
-                    <h2 className="text-3xl font-black text-center mb-6 text-gray-800 border-t-2 pt-10">نتائج المباريات والتحليل 🎙️</h2>
-                    <div className="grid gap-6">
-                        {finishedMatches.map(match => {
-                            const pen1 = match.team1PenaltiesScore ?? match.Team1PenaltiesScore;
-                            const pen2 = match.team2PenaltiesScore ?? match.Team2PenaltiesScore;
-
-                            return (
-                                <div key={match.id} className="bg-white p-6 rounded-xl shadow-md border-r-8 border-gray-400 flex flex-col transition-all hover:shadow-lg">
-                                    <div className="flex justify-between items-center w-full px-4">
-                                        <span className="text-xl font-black w-1/3 text-center text-gray-700">{match.team1?.name || match.Team1?.Name}</span>
-                                        <div className="flex flex-col items-center">
-                                            <div className="flex items-center gap-3 bg-gray-100 text-gray-800 px-5 py-2 rounded-xl font-mono text-2xl font-black shadow-inner">
-                                                <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
-                                            </div>
-                                            {pen1 !== null && pen1 !== undefined && (
-                                                <span className="text-xs font-bold text-orange-600 mt-1">ترجيح: ({pen1}) - ({pen2})</span>
+                                                    <p className="text-base font-bold text-gray-700 leading-relaxed italic relative z-10">
+                                                        "{match.matchSummary || match.MatchSummary}"
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
-                                        <span className="text-xl font-black w-1/3 text-center text-gray-700">{match.team2?.name || match.Team2?.Name}</span>
-                                    </div>
+                                    );
+                                } 
+                                
+                                // ----------------------------------------------------
+                                // 2. كارت المباراة الجارية أو القادمة (بها لوحة تحكم الأدمن)
+                                // ----------------------------------------------------
+                                else {
+                                    const t1Players = Array.isArray(match.team1?.players) ? match.team1.players : (match.team1?.players?.$values || []);
+                                    const t2Players = Array.isArray(match.team2?.players) ? match.team2.players : (match.team2?.players?.$values || []);
+                                    const cardBg = match.isPostponed ? 'bg-gray-100 border-gray-400 opacity-80' : 
+                                                   match.isPlaying ? 'bg-white border-red-500 shadow-red-50' : 'bg-white border-blue-500';
 
-                                    {/* 🤖 تعليق الذكاء الاصطناعي */}
-                                    {(match.matchSummary || match.MatchSummary) && (
-                                        <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group">
-                                            <div className="absolute -left-4 -top-4 text-indigo-100 opacity-50 text-6xl transform -rotate-12 transition group-hover:scale-110 group-hover:rotate-0 duration-300">
-                                                🎙️
+                                    return (
+                                        <div key={match.id || match.Id} className={`p-6 rounded-xl shadow-lg border-r-8 flex flex-col items-center transition-all relative ${cardBg}`}>
+                                            
+                                            {/* اسم المجموعة فوق الماتش */}
+                                            {(match.groupName || match.GroupName) && (
+                                                <div className="absolute top-0 left-0 bg-blue-100 text-blue-800 px-3 py-1 text-xs font-bold rounded-br-lg">
+                                                    المجموعة {match.groupName || match.GroupName}
+                                                </div>
+                                            )}
+
+                                            <div className="text-sm text-gray-500 mb-2 bg-gray-200 px-4 py-1 rounded-full font-bold mt-2">
+                                                {/* التعديل: إخفاء التاريخ لو مش متحدد أو عرض رسالة "يحدد لاحقاً" */}
+                                                {match.matchDate && new Date(match.matchDate).getFullYear() > 2001 
+                                                    ? new Date(match.matchDate).toLocaleString('ar-EG', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                    : 'لم يتم تحديد الموعد بعد ⏳'
+                                                }
                                             </div>
-                                            <div className="flex items-center gap-2 mb-2 relative z-10">
-                                                <span className="text-xl">🤖</span>
-                                                <span className="text-sm font-black text-indigo-800 tracking-wide uppercase">تحليل المعلق الذكي (AI):</span>
+
+                                            {match.isPostponed && (
+                                                <div className="bg-red-100 text-red-800 px-4 py-2 rounded-lg font-black mt-2 text-center border border-red-300">
+                                                    🚫 المباراة مؤجلة: {match.postponeReason}
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-between items-center w-full mt-4 px-4">
+                                                <span className={`text-2xl font-black w-1/3 text-center ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
+                                                    {match.team1?.name || match.Team1?.Name || "فريق 1"}
+                                                </span>
+                                                
+                                                {match.isPlaying ? (
+                                                    <div className="flex items-center gap-3 bg-red-600 text-white px-5 py-2 rounded-xl font-mono text-3xl font-black shadow-md animate-pulse">
+                                                        <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400 font-black text-xl bg-gray-200 px-4 py-1 rounded-lg">VS</span>
+                                                )}
+
+                                                <span className={`text-2xl font-black w-1/3 text-center ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
+                                                    {match.team2?.name || match.Team2?.Name || "فريق 2"}
+                                                </span>
                                             </div>
-                                            <p className="text-base font-bold text-gray-700 leading-relaxed italic relative z-10">
-                                                "{match.matchSummary || match.MatchSummary}"
-                                            </p>
+
+                                            {match.isPlaying && (
+                                                <div className="mt-4 text-red-600 font-black text-sm flex items-center gap-2 bg-red-50 px-3 py-1 rounded-full border border-red-200">
+                                                    <span className="w-2.5 h-2.5 bg-red-600 rounded-full animate-ping"></span>مباشر
+                                                </div>
+                                            )}
+
+                                            {isAdmin && !match.isPlaying && (
+                                                <div className="mt-6 flex gap-4 w-full justify-center border-t pt-4">
+                                                    <button onClick={() => handleStartMatch(match.id || match.Id)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow">
+                                                        ▶️ بدء المباراة
+                                                    </button>
+                                                    {!match.isPostponed && (
+                                                        <button onClick={() => handlePostponeMatch(match.id || match.Id)} className="bg-yellow-500 text-yellow-900 px-6 py-2 rounded-lg font-bold hover:bg-yellow-600 transition shadow">
+                                                            ⏸️ تأجيل
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {isAdmin && match.isPlaying && (
+                                                <div className="mt-6 w-full border-t border-gray-100 pt-6">
+                                                    <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4">سجل الأهداف والكروت 👇</h4>
+                                                    <div className="flex flex-col md:flex-row gap-4 w-full">
+                                                        
+                                                        {/* الفريق الأول */}
+                                                        <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
+                                                            {t1Players.map(player => (
+                                                                <div key={player.id || player.Id} className={`flex items-center justify-between p-2 rounded-lg shadow-sm border ${player.isSuspended ? 'bg-red-50 opacity-75' : 'bg-white'}`}>
+                                                                    <span className="font-bold text-sm text-gray-800 flex-1">
+                                                                        {player.name || player.Name}
+                                                                        {player.isSuspended && <span className="text-red-600 mr-2 text-xs">🚫 ({player.suspendedMatchesLeft} ماتش)</span>}
+                                                                    </span>
+                                                                    {!player.isSuspended && (
+                                                                        <div className="flex gap-1">
+                                                                            <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'yellow-card')} className="bg-yellow-400 px-2 py-1 rounded text-xs">🟨</button>
+                                                                            <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'red-card')} className="bg-red-600 px-2 py-1 rounded text-xs">🟥</button>
+                                                                            <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'blue-card')} className="bg-blue-600 px-2 py-1 rounded text-xs" title="طرد أخلاقي">🟦</button>
+                                                                            <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'player-goal')} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">⚽</button>
+                                                                            <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'remove-goal')} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">-⚽</button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        {/* الفريق الثاني */}
+                                                        <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
+                                                            {t2Players.map(player => (
+                                                                <div key={player.id || player.Id} className={`flex items-center justify-between p-2 rounded-lg shadow-sm border ${player.isSuspended ? 'bg-red-50 opacity-75' : 'bg-white'}`}>
+                                                                    <span className="font-bold text-sm text-gray-800 flex-1">
+                                                                        {player.name || player.Name}
+                                                                        {player.isSuspended && <span className="text-red-600 mr-2 text-xs">🚫 ({player.suspendedMatchesLeft} ماتش)</span>}
+                                                                    </span>
+                                                                    {!player.isSuspended && (
+                                                                        <div className="flex gap-1">
+                                                                            <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'yellow-card')} className="bg-yellow-400 px-2 py-1 rounded text-xs">🟨</button>
+                                                                            <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'red-card')} className="bg-red-600 px-2 py-1 rounded text-xs">🟥</button>
+                                                                            <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'blue-card')} className="bg-blue-600 px-2 py-1 rounded text-xs" title="طرد أخلاقي">🟦</button>
+                                                                            <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'player-goal')} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">⚽</button>
+                                                                            <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'remove-goal')} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">-⚽</button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                    </div>
+                                                    <button onClick={() => handleFinishMatch(match.id || match.Id)} className="w-64 mx-auto block bg-red-600 text-white px-8 py-3 rounded-xl font-black hover:bg-red-700 transition shadow-lg mt-6">
+                                                        صافرة النهاية 🛑
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                    );
+                                }
+                            })}
+                        </div>
                     </div>
-                </>
+                ))
             )}
 
             {/* 🏆 شاشة احتفالية تتويج البطل الملحمية 🏆 */}
