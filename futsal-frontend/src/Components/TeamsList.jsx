@@ -10,7 +10,7 @@ export default function TeamsList() {
 
     // فصلنا جلب البيانات في دالة لوحدها عشان نقدر نناديها بعد الحذف لتحديث الشاشة
     const fetchTeams = () => {
-        fetch('/api/teams')
+        fetch('https://proleague-api.somee.com/api/teams')
             .then(res => res.json())
             .then(data => {
                 const teamsData = Array.isArray(data) ? data : (data?.$values || []);
@@ -41,7 +41,7 @@ export default function TeamsList() {
 
         const token = localStorage.getItem('adminToken');
         try {
-            const response = await fetch(`/api/Players/${playerId}`, {
+            const response = await fetch(`https://proleague-api.somee.com/api/Players/${playerId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`

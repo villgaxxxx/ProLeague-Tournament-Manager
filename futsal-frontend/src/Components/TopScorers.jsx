@@ -5,7 +5,7 @@ export default function TopScorers() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('/api/Players/topscorers')
+        fetch('https://proleague-api.somee.com/api/Players/topscorers')
             .then(res => res.json())
             .then(data => {
                 setScorers(data);
