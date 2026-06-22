@@ -156,35 +156,30 @@ export default function Matches({ setActiveTab }) {
         if (!element) return;
 
         try {
-            // حفظ الستايل القديم
             const originalBg = element.style.backgroundColor;
             const originalPadding = element.style.padding;
             const originalRadius = element.style.borderRadius;
 
-            // إضافة ستايل مؤقت للصورة
             element.style.backgroundColor = '#f8fafc';
             element.style.padding = '20px';
             element.style.borderRadius = '16px';
 
-            // استخدام مكتبة html-to-image
             const dataUrl = await toPng(element, {
                 quality: 1.0,
                 pixelRatio: 2, // جودة عالية
                 filter: (node) => {
-                    // إخفاء زراير الأدمن من الصورة
-                    if (node.tagName && node.hasAttribute('data-html2canvas-ignore')) {
+                    // 🔥 السر هنا: تجاهل أي زرار أو عنصر واخد كلاس hide-in-screenshot
+                    if (node?.classList?.contains('hide-in-screenshot')) {
                         return false;
                     }
                     return true;
                 }
             });
 
-            // إرجاع الستايل زي ما كان عشان شكل الموقع ميبوظش
             element.style.backgroundColor = originalBg;
             element.style.padding = originalPadding;
             element.style.borderRadius = originalRadius;
 
-            // تحميل الصورة
             const link = document.createElement('a');
             link.download = `${roundKey}-مباريات.png`;
             link.href = dataUrl;
@@ -202,28 +197,26 @@ export default function Matches({ setActiveTab }) {
             {Object.keys(matchesByRound).length === 0 ? (
                 <p className="text-center text-gray-500 font-bold mb-10 text-xl">لم يتم سحب القرعة أو توليد المباريات بعد.</p>
             ) : (
-                // لف على كل الجولات وارسم البلوكات
                 Object.keys(matchesByRound).map(roundKey => {
-                    // 1. إنشاء ID فريد لكل جولة بدون مسافات
                     const safeId = `capture-${roundKey.replace(/\s+/g, '-')}`;
 
                     return (
                         <div key={roundKey} className="mb-14 relative">
                             
-                            {/* 2. 📸 زرار التصوير (بره منطقة التصوير عشان ميظهرش في الصورة) */}
-                            <div className="flex justify-end mb-4 px-2">
-                                <button 
-                                    onClick={() => handleDownloadRoundImage(roundKey)}
-                                    className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-xl font-bold hover:shadow-lg transition transform hover:-translate-y-1 text-sm border-2 border-indigo-200"
-                                >
-                                    <span>📸</span> تحميل جدول {roundKey}
-                                </button>
-                            </div>
+                            {/* 🔥 التعديل: زرار التحميل يظهر للأدمن فقط 🔥 */}
+                            {isAdmin && (
+                                <div className="flex justify-end mb-4 px-2">
+                                    <button 
+                                        onClick={() => handleDownloadRoundImage(roundKey)}
+                                        className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-xl font-bold hover:shadow-lg transition transform hover:-translate-y-1 text-sm border-2 border-indigo-200"
+                                    >
+                                        <span>📸</span> تحميل جدول {roundKey}
+                                    </button>
+                                </div>
+                            )}
 
-                            {/* 3. 🔥 المنطقة اللي هتدخل في الصورة بتبدأ من هنا (id=safeId) 🔥 */}
                             <div id={safeId} className="p-4 rounded-3xl bg-gray-50/50">
                                 
-                                {/* عنوان الجولة */}
                                 <div className="flex items-center justify-center mb-8">
                                     <h3 className="text-2xl font-black bg-blue-950 text-white px-10 py-3 rounded-full shadow-lg border-4 border-blue-100">
                                         {roundKey}
@@ -234,9 +227,6 @@ export default function Matches({ setActiveTab }) {
                                     {matchesByRound[roundKey].map(match => {
                                         const isFinished = match.isFinished === true || match.IsFinished === true;
                                         
-                                        // ----------------------------------------------------
-                                        // 1. كارت المباراة المنتهية
-                                        // ----------------------------------------------------
                                         if (isFinished) {
                                             const pen1 = match.team1PenaltiesScore ?? match.Team1PenaltiesScore;
                                             const pen2 = match.team2PenaltiesScore ?? match.Team2PenaltiesScore;
@@ -263,7 +253,7 @@ export default function Matches({ setActiveTab }) {
                                                     </div>
 
                                                     {(match.matchSummary || match.MatchSummary) && (
-                                                        <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group">
+                                                        <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group hide-in-screenshot">
                                                             <div className="absolute -left-4 -top-4 text-indigo-100 opacity-50 text-6xl transform -rotate-12 transition group-hover:scale-110 group-hover:rotate-0 duration-300">🎙️</div>
                                                             <div className="flex items-center gap-2 mb-2 relative z-10">
                                                                 <span className="text-xl">🤖</span>
@@ -277,10 +267,6 @@ export default function Matches({ setActiveTab }) {
                                                 </div>
                                             );
                                         } 
-                                        
-                                        // ----------------------------------------------------
-                                        // 2. كارت المباراة الجارية أو القادمة
-                                        // ----------------------------------------------------
                                         else {
                                             const t1Players = Array.isArray(match.team1?.players) ? match.team1.players : (match.team1?.players?.$values || []);
                                             const t2Players = Array.isArray(match.team2?.players) ? match.team2.players : (match.team2?.players?.$values || []);
@@ -333,8 +319,9 @@ export default function Matches({ setActiveTab }) {
                                                         </div>
                                                     )}
 
+                                                    {/* 🔥 التعديل: إضافة hide-in-screenshot عشان ميظهرش في الصورة */}
                                                     {isAdmin && !match.isPlaying && (
-                                                        <div className="mt-6 flex gap-4 w-full justify-center border-t pt-4">
+                                                        <div className="mt-6 flex gap-4 w-full justify-center border-t pt-4 hide-in-screenshot">
                                                             <button onClick={() => handleStartMatch(match.id || match.Id)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow">
                                                                 ▶️ بدء المباراة
                                                             </button>
@@ -346,12 +333,12 @@ export default function Matches({ setActiveTab }) {
                                                         </div>
                                                     )}
 
+                                                    {/* 🔥 التعديل: إضافة hide-in-screenshot لزراير الأهداف والكروت وصافرة النهاية */}
                                                     {isAdmin && match.isPlaying && (
-                                                        <div className="mt-6 w-full border-t border-gray-100 pt-6">
+                                                        <div className="mt-6 w-full border-t border-gray-100 pt-6 hide-in-screenshot">
                                                             <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4">سجل الأهداف والكروت 👇</h4>
                                                             <div className="flex flex-col md:flex-row gap-4 w-full">
                                                                 
-                                                                {/* الفريق الأول */}
                                                                 <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
                                                                     {t1Players.map(player => (
                                                                         <div key={player.id || player.Id} className={`flex items-center justify-between p-2 rounded-lg shadow-sm border ${player.isSuspended ? 'bg-red-50 opacity-75' : 'bg-white'}`}>
@@ -372,7 +359,6 @@ export default function Matches({ setActiveTab }) {
                                                                     ))}
                                                                 </div>
 
-                                                                {/* الفريق الثاني */}
                                                                 <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
                                                                     {t2Players.map(player => (
                                                                         <div key={player.id || player.Id} className={`flex items-center justify-between p-2 rounded-lg shadow-sm border ${player.isSuspended ? 'bg-red-50 opacity-75' : 'bg-white'}`}>
@@ -403,21 +389,19 @@ export default function Matches({ setActiveTab }) {
                                             );
                                         }
                                     })}
-                                </div> {/* 👈 دي قفلة الـ grid */}
+                                </div>
 
-                                {/* 🎯 ووتر مارك صغيرة تظهر بس في الصورة */}
                                 <div className="text-center mt-6 text-gray-400 font-bold text-xs opacity-80">
                                     تم الإنشاء بواسطة نظام إدارة البطولات الاحترافي ⚽
                                 </div>
 
-                            </div> 
+                            </div>
 
-                        </div> 
+                        </div>
                     );
-                }) // 👈 دي قفلة الـ map السليمة!
+                })
             )}
 
-            {/* 🏆 شاشة احتفالية تتويج البطل الملحمية 🏆 */}
             {champion && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center text-center p-4 animate-fade-in" dir="rtl">
                     <div className="bg-gradient-to-b from-yellow-400 via-amber-500 to-amber-600 p-1 rounded-3xl shadow-2xl max-w-lg w-full transform scale-100 transition-all animate-bounce-short">
