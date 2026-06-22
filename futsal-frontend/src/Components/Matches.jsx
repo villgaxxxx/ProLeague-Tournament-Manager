@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as signalR from "@microsoft/signalr";
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 
 export default function Matches({ setActiveTab }) {
     const [matches, setMatches] = useState([]);
@@ -148,35 +148,46 @@ export default function Matches({ setActiveTab }) {
         return acc;
     }, {});
 
-    // 📸 دالة تصوير الجولة
+    // 📸 دالة التقاط جدول الجولة كصورة (بالمكتبة الحديثة)
     const handleDownloadRoundImage = async (roundKey) => {
-        // بنعمل ID آمن بدون مسافات عشان نعرف نمسكه
         const elementId = `capture-${roundKey.replace(/\s+/g, '-')}`;
         const element = document.getElementById(elementId);
         
         if (!element) return;
 
         try {
-            // إضافة كلاس مؤقت عشان نظبط خلفية الصورة لو شفافة
-            element.style.backgroundColor = '#f8fafc'; // لون رمادي فاتح شيك
+            // حفظ الستايل القديم
+            const originalBg = element.style.backgroundColor;
+            const originalPadding = element.style.padding;
+            const originalRadius = element.style.borderRadius;
+
+            // إضافة ستايل مؤقت للصورة
+            element.style.backgroundColor = '#f8fafc';
             element.style.padding = '20px';
             element.style.borderRadius = '16px';
 
-            const canvas = await html2canvas(element, {
-                scale: 2, // جودة عالية للصورة
-                useCORS: true,
-                logging: false,
+            // استخدام مكتبة html-to-image
+            const dataUrl = await toPng(element, {
+                quality: 1.0,
+                pixelRatio: 2, // جودة عالية
+                filter: (node) => {
+                    // إخفاء زراير الأدمن من الصورة
+                    if (node.tagName && node.hasAttribute('data-html2canvas-ignore')) {
+                        return false;
+                    }
+                    return true;
+                }
             });
 
-            // إرجاع الستايل زي ما كان بعد التصوير
-            element.style.backgroundColor = '';
-            element.style.padding = '';
+            // إرجاع الستايل زي ما كان عشان شكل الموقع ميبوظش
+            element.style.backgroundColor = originalBg;
+            element.style.padding = originalPadding;
+            element.style.borderRadius = originalRadius;
 
-            // تحويل الكانفاس لصورة وتحميلها
-            const image = canvas.toDataURL("image/png");
+            // تحميل الصورة
             const link = document.createElement('a');
-            link.href = image;
             link.download = `${roundKey}-مباريات.png`;
+            link.href = dataUrl;
             link.click();
         } catch (error) {
             console.error("حدث خطأ أثناء التقاط الصورة:", error);
