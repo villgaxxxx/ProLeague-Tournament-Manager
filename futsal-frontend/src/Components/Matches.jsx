@@ -239,18 +239,24 @@ export default function Matches({ setActiveTab }) {
                                                         </div>
                                                     )}
 
-                                                    <div className="flex justify-between items-center w-full px-4 mt-2">
-                                                        <span className="text-xl font-black w-1/3 text-center text-gray-700">{match.team1?.name || match.Team1?.Name}</span>
-                                                        <div className="flex flex-col items-center">
-                                                            <div className="flex items-center gap-3 bg-gray-100 text-gray-800 px-5 py-2 rounded-xl font-mono text-2xl font-black shadow-inner">
-                                                                <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
-                                                            </div>
-                                                            {pen1 !== null && pen1 !== undefined && (
-                                                                <span className="text-xs font-bold text-orange-600 mt-1">ترجيح: ({pen1}) - ({pen2})</span>
-                                                            )}
-                                                        </div>
-                                                        <span className="text-xl font-black w-1/3 text-center text-gray-700">{match.team2?.name || match.Team2?.Name}</span>
-                                                    </div>
+                                                    <div className="flex justify-between items-center w-full px-1 sm:px-4 mt-2">
+    <span className="text-base sm:text-xl md:text-2xl font-black flex-1 text-center text-gray-700 break-words px-1">
+        {match.team1?.name || match.Team1?.Name}
+    </span>
+    
+    <div className="flex flex-col items-center shrink-0 mx-2">
+        <div className="flex items-center gap-2 sm:gap-3 bg-gray-100 text-gray-800 px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-lg sm:text-2xl font-black shadow-inner">
+            <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
+        </div>
+        {pen1 !== null && pen1 !== undefined && (
+            <span className="text-[10px] sm:text-xs font-bold text-orange-600 mt-1">ترجيح: ({pen1}) - ({pen2})</span>
+        )}
+    </div>
+    
+    <span className="text-base sm:text-xl md:text-2xl font-black flex-1 text-center text-gray-700 break-words px-1">
+        {match.team2?.name || match.Team2?.Name}
+    </span>
+</div>
 
                                                     {(match.matchSummary || match.MatchSummary) && (
                                                         <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group hide-in-screenshot">
@@ -295,23 +301,25 @@ export default function Matches({ setActiveTab }) {
                                                         </div>
                                                     )}
 
-                                                    <div className="flex justify-between items-center w-full mt-4 px-4">
-                                                        <span className={`text-2xl font-black w-1/3 text-center ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
-                                                            {match.team1?.name || match.Team1?.Name || "فريق 1"}
-                                                        </span>
-                                                        
-                                                        {match.isPlaying ? (
-                                                            <div className="flex items-center gap-3 bg-red-600 text-white px-5 py-2 rounded-xl font-mono text-3xl font-black shadow-md animate-pulse">
-                                                                <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-gray-400 font-black text-xl bg-gray-200 px-4 py-1 rounded-lg">VS</span>
-                                                        )}
+                                                    <div className="flex justify-between items-center w-full mt-4 px-1 sm:px-4">
+    <span className={`text-base sm:text-xl md:text-2xl font-black flex-1 text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
+        {match.team1?.name || match.Team1?.Name || "فريق 1"}
+    </span>
+    
+    <div className="shrink-0 mx-2 flex justify-center">
+        {match.isPlaying ? (
+            <div className="flex items-center gap-2 sm:gap-3 bg-red-600 text-white px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-xl sm:text-3xl font-black shadow-md animate-pulse">
+                <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
+            </div>
+        ) : (
+            <span className="text-gray-400 font-black text-sm sm:text-xl bg-gray-200 px-3 py-1 rounded-lg">VS</span>
+        )}
+    </div>
 
-                                                        <span className={`text-2xl font-black w-1/3 text-center ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
-                                                            {match.team2?.name || match.Team2?.Name || "فريق 2"}
-                                                        </span>
-                                                    </div>
+    <span className={`text-base sm:text-xl md:text-2xl font-black flex-1 text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
+        {match.team2?.name || match.Team2?.Name || "فريق 2"}
+    </span>
+</div>
 
                                                     {match.isPlaying && (
                                                         <div className="mt-4 text-red-600 font-black text-sm flex items-center gap-2 bg-red-50 px-3 py-1 rounded-full border border-red-200">
