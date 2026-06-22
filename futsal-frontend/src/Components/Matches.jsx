@@ -130,7 +130,11 @@ export default function Matches({ setActiveTab }) {
     };
 
     // 🔥 تجميع المباريات حسب رقم الجولة
-    const matchesByRound = matches.reduce((acc, match) => {
+    // 🔥 السطر الجديد: فلترة لإخفاء أي ماتش انتهى (عشان يروح للأرشيف)
+    const activeMatches = matches.filter(m => !(m.isFinished === true || m.IsFinished === true));
+
+    // 👇 هنا خلينا الـ reduce يشتغل على activeMatches بدل matches
+    const matchesByRound = activeMatches.reduce((acc, match) => {
         const type = match.matchType || match.MatchType;
         let roundKey = "";
 
@@ -138,8 +142,8 @@ export default function Matches({ setActiveTab }) {
         if (type !== "Group" && type !== undefined) {
             roundKey = "الأدوار الإقصائية 🏆";
         } else {
-            // لو مجموعات، نقسمها بالجولات
-            const round = match.roundNumber || match.RoundNumber || 1;
+            // لو مجموعات، نقسمها بالجولات (استخدمنا ?? عشان لو الجولة 0 تتقري صح)
+            const round = match.roundNumber ?? match.RoundNumber ?? 1;
             roundKey = `الجولة ${round}`;
         }
 
