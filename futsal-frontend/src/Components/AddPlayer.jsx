@@ -7,7 +7,7 @@ export default function AddPlayer() {
 
     // بنجيب الفرق من السيرفر أول ما الشاشة تفتح عشان نحطها في القائمة
     useEffect(() => {
-        fetch('https://proleague-api.somee.com/api/teams')
+        fetch('/api/teams')
             .then(res => res.json())
             .then(data => {
                 // حماية عشان لو الداتا راجعة جوه $values
@@ -29,7 +29,7 @@ export default function AddPlayer() {
         const token = localStorage.getItem('adminToken');
 
         try {
-            const response = await fetch('https://proleague-api.somee.com/api/Players', {
+            const response = await fetch('/api/Players', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',

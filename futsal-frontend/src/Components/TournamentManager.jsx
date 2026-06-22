@@ -7,11 +7,11 @@ export default function TournamentManager() {
 
     // ⚠️ تنبيه: لو لسه بيظهرلك إيرور 500 من Vercel، تأكد إنك بتكتب الرابط الكامل للسيرفر بدل '/api/...'
     const fetchSettingsAndGroups = () => {
-        fetch('https://proleague-api.somee.com/api/Tournament/settings') // عدل الرابط هنا لو لزم الأمر
+        fetch('/api/Tournament/settings') // عدل الرابط هنا لو لزم الأمر
             .then(res => res.json())
             .then(data => setSettings(data));
 
-        fetch('https://proleague-api.somee.com/api/Tournament/groups') // وهنا
+        fetch('/api/Tournament/groups') // وهنا
             .then(res => res.json())
             .then(data => {
                 const groupsData = Array.isArray(data) ? data : (data?.$values || []);
@@ -23,7 +23,7 @@ export default function TournamentManager() {
 
     const handleSaveSettings = async () => {
         const token = localStorage.getItem('adminToken');
-        const res = await fetch('https://proleague-api.somee.com/api/Tournament/settings', {
+        const res = await fetch('/api/Tournament/settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(settings)
@@ -36,7 +36,7 @@ export default function TournamentManager() {
     const handleDrawGroups = async () => {
         try {
             // 1. جلب الفرق من السيرفر لفحص عدد اللاعبين قبل القرعة
-            const teamsRes = await fetch('https://proleague-api.somee.com/api/teams');
+            const teamsRes = await fetch('/api/teams');
             const teamsData = await teamsRes.json();
             const teamsList = Array.isArray(teamsData) ? teamsData : (teamsData?.$values || []);
 
@@ -60,7 +60,7 @@ export default function TournamentManager() {
 
             // 5. إرسال طلب سحب القرعة للسيرفر
             const token = localStorage.getItem('adminToken');
-            const res = await fetch('https://proleague-api.somee.com/api/Tournament/draw-groups', {
+            const res = await fetch('/api/Tournament/draw-groups', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

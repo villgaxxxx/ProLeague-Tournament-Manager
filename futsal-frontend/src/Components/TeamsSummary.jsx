@@ -8,7 +8,7 @@ const TeamsSummary = () => {
         const fetchSummary = async () => {
             try {
                 const token = localStorage.getItem('adminToken');
-                const response = await fetch('https://proleague-api.somee.com/api/Teams/print-summary', {
+                const response = await fetch('/api/Teams/print-summary', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {

@@ -8,7 +8,7 @@ export default function AdminSchedule() {
         const token = localStorage.getItem('adminToken');
         if (!token) return;
         
-        fetch('https://proleague-api.somee.com/api/Tournament/draft-matches', {
+        fetch('/api/Tournament/draft-matches', {
             headers: { 'Authorization': `Bearer ${token}` }
         })
         .then(res => res.json())
@@ -19,7 +19,7 @@ export default function AdminSchedule() {
 
     const handleGenerate = async () => {
         const token = localStorage.getItem('adminToken');
-        const res = await fetch('https://proleague-api.somee.com/api/Tournament/generate-schedule', {
+        const res = await fetch('/api/Tournament/generate-schedule', {
             method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
@@ -29,7 +29,7 @@ export default function AdminSchedule() {
 
     const handleDateChange = async (matchId, newDate) => {
         const token = localStorage.getItem('adminToken');
-        await fetch(`https://proleague-api.somee.com/api/Tournament/update-date/${matchId}`, {
+        await fetch(`/api/Tournament/update-date/${matchId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(newDate)
@@ -42,7 +42,7 @@ export default function AdminSchedule() {
         if (!confirm) return;
 
         const token = localStorage.getItem('adminToken');
-        const res = await fetch('https://proleague-api.somee.com/api/Tournament/publish-matches', {
+        const res = await fetch('/api/Tournament/publish-matches', {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
