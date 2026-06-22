@@ -19,7 +19,7 @@ export default function Matches({ setActiveTab }) {
     }, [fetchMatches]);
 
     useEffect(() => {
-        const backendUrl = "/matchHub"; 
+        const backendUrl = "http://proleague-api.somee.com/matchHub"; 
         
         const connection = new signalR.HubConnectionBuilder()
             .withUrl(backendUrl)
