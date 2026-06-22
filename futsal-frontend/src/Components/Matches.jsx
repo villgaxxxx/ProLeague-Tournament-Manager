@@ -384,46 +384,99 @@ export default function Matches({ setActiveTab }) {
                                                             <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4">سجل الأهداف والكروت 👇</h4>
                                                             <div className="flex flex-col md:flex-row gap-4 w-full">
                                                                 
+                                                                {/* الفريق الأول */}
                                                                 <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
                                                                     {t1Players.map(player => (
                                                                         <div key={player.id || player.Id} className={`flex items-center justify-between p-2 rounded-lg shadow-sm border ${player.isSuspended ? 'bg-red-50 opacity-75' : 'bg-white'}`}>
-                                                                            <span className="font-bold text-sm text-gray-800 flex-1">
-                                                                                {player.name || player.Name}
-                                                                                {player.isSuspended && <span className="text-red-600 mr-2 text-xs">🚫 ({player.suspendedMatchesLeft} ماتش)</span>}
+                                                                            
+                                                                            {/* 🔥 التعديل هنا: عرض الاسم مع الإحصائيات (أهداف وكروت) 🔥 */}
+                                                                            <span className="font-bold text-sm text-gray-800 flex-1 flex items-center flex-wrap gap-1">
+                                                                                <span>{player.name || player.Name}</span>
+                                                                                
+                                                                                {(player.yellowCards > 0 || player.YellowCards > 0) && (
+                                                                                    <span className="text-yellow-600 font-black text-[10px] sm:text-xs mx-0.5 bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300 shadow-sm">
+                                                                                        {player.yellowCards || player.YellowCards} 🟨
+                                                                                    </span>
+                                                                                )}
+                                                                                {(player.redCards > 0 || player.RedCards > 0) && (
+                                                                                    <span className="text-red-600 font-black text-[10px] sm:text-xs mx-0.5 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shadow-sm">
+                                                                                        {player.redCards || player.RedCards} 🟥
+                                                                                    </span>
+                                                                                )}
+                                                                                {(player.blueCards > 0 || player.BlueCards > 0) && (
+                                                                                    <span className="text-blue-700 font-black text-[10px] sm:text-xs mx-0.5 bg-blue-100 px-1.5 py-0.5 rounded border border-blue-300 shadow-sm">
+                                                                                        {player.blueCards || player.BlueCards} 🟦
+                                                                                    </span>
+                                                                                )}
+                                                                                {(player.goals > 0 || player.Goals > 0) && (
+                                                                                    <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
+                                                                                        {player.goals || player.Goals} ⚽
+                                                                                    </span>
+                                                                                )}
+                                                                                {player.isSuspended && (
+                                                                                    <span className="text-red-600 mr-1 text-xs font-black">🚫 ({player.suspendedMatchesLeft || player.SuspendedMatchesLeft} ماتش)</span>
+                                                                                )}
                                                                             </span>
+
                                                                             {!player.isSuspended && (
-                                                                                <div className="flex gap-1">
-                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'yellow-card')} className="bg-yellow-400 px-2 py-1 rounded text-xs">🟨</button>
-                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'red-card')} className="bg-red-600 px-2 py-1 rounded text-xs">🟥</button>
-                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'blue-card')} className="bg-blue-600 px-2 py-1 rounded text-xs" title="طرد أخلاقي">🟦</button>
-                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'player-goal')} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">⚽</button>
-                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'remove-goal')} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">-⚽</button>
+                                                                                <div className="flex gap-1 shrink-0">
+                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'yellow-card')} className="bg-yellow-400 px-2 py-1 rounded text-xs hover:bg-yellow-500 transition shadow-sm">🟨</button>
+                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'red-card')} className="bg-red-600 px-2 py-1 rounded text-xs hover:bg-red-700 transition shadow-sm">🟥</button>
+                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'blue-card')} className="bg-blue-600 px-2 py-1 rounded text-xs hover:bg-blue-700 transition shadow-sm" title="طرد أخلاقي">🟦</button>
+                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'player-goal')} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold hover:bg-green-700 transition shadow-sm">⚽</button>
+                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'remove-goal')} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-700 transition shadow-sm">-⚽</button>
                                                                                 </div>
                                                                             )}
                                                                         </div>
                                                                     ))}
                                                                 </div>
 
+                                                                {/* الفريق الثاني */}
                                                                 <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
                                                                     {t2Players.map(player => (
                                                                         <div key={player.id || player.Id} className={`flex items-center justify-between p-2 rounded-lg shadow-sm border ${player.isSuspended ? 'bg-red-50 opacity-75' : 'bg-white'}`}>
-                                                                            <span className="font-bold text-sm text-gray-800 flex-1">
-                                                                                {player.name || player.Name}
-                                                                                {player.isSuspended && <span className="text-red-600 mr-2 text-xs">🚫 ({player.suspendedMatchesLeft} ماتش)</span>}
+                                                                            
+                                                                            {/* 🔥 التعديل هنا: عرض الاسم مع الإحصائيات (أهداف وكروت) 🔥 */}
+                                                                            <span className="font-bold text-sm text-gray-800 flex-1 flex items-center flex-wrap gap-1">
+                                                                                <span>{player.name || player.Name}</span>
+                                                                                
+                                                                                {(player.yellowCards > 0 || player.YellowCards > 0) && (
+                                                                                    <span className="text-yellow-600 font-black text-[10px] sm:text-xs mx-0.5 bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300 shadow-sm">
+                                                                                        {player.yellowCards || player.YellowCards} 🟨
+                                                                                    </span>
+                                                                                )}
+                                                                                {(player.redCards > 0 || player.RedCards > 0) && (
+                                                                                    <span className="text-red-600 font-black text-[10px] sm:text-xs mx-0.5 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shadow-sm">
+                                                                                        {player.redCards || player.RedCards} 🟥
+                                                                                    </span>
+                                                                                )}
+                                                                                {(player.blueCards > 0 || player.BlueCards > 0) && (
+                                                                                    <span className="text-blue-700 font-black text-[10px] sm:text-xs mx-0.5 bg-blue-100 px-1.5 py-0.5 rounded border border-blue-300 shadow-sm">
+                                                                                        {player.blueCards || player.BlueCards} 🟦
+                                                                                    </span>
+                                                                                )}
+                                                                                {(player.goals > 0 || player.Goals > 0) && (
+                                                                                    <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
+                                                                                        {player.goals || player.Goals} ⚽
+                                                                                    </span>
+                                                                                )}
+                                                                                {player.isSuspended && (
+                                                                                    <span className="text-red-600 mr-1 text-xs font-black">🚫 ({player.suspendedMatchesLeft || player.SuspendedMatchesLeft} ماتش)</span>
+                                                                                )}
                                                                             </span>
+
                                                                             {!player.isSuspended && (
-                                                                                <div className="flex gap-1">
-                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'yellow-card')} className="bg-yellow-400 px-2 py-1 rounded text-xs">🟨</button>
-                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'red-card')} className="bg-red-600 px-2 py-1 rounded text-xs">🟥</button>
-                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'blue-card')} className="bg-blue-600 px-2 py-1 rounded text-xs" title="طرد أخلاقي">🟦</button>
-                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'player-goal')} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">⚽</button>
-                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'remove-goal')} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">-⚽</button>
+                                                                                <div className="flex gap-1 shrink-0">
+                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'yellow-card')} className="bg-yellow-400 px-2 py-1 rounded text-xs hover:bg-yellow-500 transition shadow-sm">🟨</button>
+                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'red-card')} className="bg-red-600 px-2 py-1 rounded text-xs hover:bg-red-700 transition shadow-sm">🟥</button>
+                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'blue-card')} className="bg-blue-600 px-2 py-1 rounded text-xs hover:bg-blue-700 transition shadow-sm" title="طرد أخلاقي">🟦</button>
+                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'player-goal')} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold hover:bg-green-700 transition shadow-sm">⚽</button>
+                                                                                    <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'remove-goal')} className="bg-red-600 text-white px-2 py-1 rounded text-xs font-bold hover:bg-red-700 transition shadow-sm">-⚽</button>
                                                                                 </div>
                                                                             )}
                                                                         </div>
                                                                     ))}
                                                                 </div>
-
                                                             </div>
                                                             <button onClick={() => handleFinishMatch(match.id || match.Id)} className="w-64 mx-auto block bg-red-600 text-white px-8 py-3 rounded-xl font-black hover:bg-red-700 transition shadow-lg mt-6">
                                                                 صافرة النهاية 🛑
