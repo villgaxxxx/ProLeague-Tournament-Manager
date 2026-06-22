@@ -13,7 +13,7 @@ export default function Login({ onLoginSuccess }) {
         setStatus({ loading: true, error: '' });
 
         try {
-            const response = await fetch('https://proleague-api.somee.com/api/Auth/login', {
+            const response = await fetch('http://proleague-api.somee.com/api/Auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(credentials)

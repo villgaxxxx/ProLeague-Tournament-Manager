@@ -49,7 +49,7 @@ function App() {
 
         const token = localStorage.getItem('adminToken');
         try {
-            const response = await fetch('https://proleague-api.somee.com/api/Teams/reset', {
+            const response = await fetch('http://proleague-api.somee.com/api/Teams/reset', {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`

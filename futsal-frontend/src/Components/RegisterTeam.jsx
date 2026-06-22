@@ -24,7 +24,7 @@ export default function RegisterTeam() {
         try {
             // نبعت البيانات للـ .NET API (تأكد من البورت)
             const token = localStorage.getItem('adminToken');
-            const response = await fetch('https://proleague-api.somee.com/api/teams', {
+            const response = await fetch('http://proleague-api.somee.com/api/teams', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

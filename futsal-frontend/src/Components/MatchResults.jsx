@@ -6,7 +6,7 @@ export default function MatchResults() {
 
     useEffect(() => {
         // نعدل الرابط عشان يجيب كل الماتشات من السيرفر الأساسي
-        fetch('https://proleague-api.somee.com/api/Matches')
+        fetch('http://proleague-api.somee.com/api/Matches')
             .then(response => response.json())
             .then(data => {
                 // نفلتر الماتشات عشان نعرض اللي اتعملها "إنهاء" بس

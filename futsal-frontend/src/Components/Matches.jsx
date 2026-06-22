@@ -7,7 +7,7 @@ export default function Matches({ setActiveTab }) {
     const isAdmin = !!localStorage.getItem('adminToken');
 
     const fetchMatches = useCallback(() => {
-        fetch('https://proleague-api.somee.com/api/Matches')
+        fetch('http://proleague-api.somee.com/api/Matches')
             .then(res => res.json())
             .then(data => setMatches(Array.isArray(data) ? data : data?.$values || []))
             .catch(err => console.error("Error fetching matches:", err));
@@ -19,7 +19,7 @@ export default function Matches({ setActiveTab }) {
 
     useEffect(() => {
     // 1. استخدام الرابط الكامل للباك إند
-    const backendUrl = "https://proleague-api.somee.com/matchHub"; // رابط السيرفر
+    const backendUrl = "http://proleague-api.somee.com/matchHub"; // رابط السيرفر
     
     const connection = new signalR.HubConnectionBuilder()
         .withUrl(backendUrl)
@@ -46,7 +46,7 @@ export default function Matches({ setActiveTab }) {
     //دالة بدء المباراة 
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');
-        await fetch(`https://proleague-api.somee.com/api/Matches/${id}/start`, {
+        await fetch(`http://proleague-api.somee.com/api/Matches/${id}/start`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
         });
         fetchMatches();
@@ -57,7 +57,7 @@ export default function Matches({ setActiveTab }) {
         if (!reason) return;
 
         const token = localStorage.getItem('adminToken');
-        await fetch(`https://proleague-api.somee.com/api/Matches/${id}/postpone`, {
+        await fetch(`http://proleague-api.somee.com/api/Matches/${id}/postpone`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(reason)
@@ -67,7 +67,7 @@ export default function Matches({ setActiveTab }) {
 
     const actionPlayer = async (matchId, playerId, action) => {
         const token = localStorage.getItem('adminToken');
-        await fetch(`https://proleague-api.somee.com/api/Matches/${matchId}/${action}/${playerId}`, {
+        await fetch(`http://proleague-api.somee.com/api/Matches/${matchId}/${action}/${playerId}`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
         });
         fetchMatches();
@@ -106,7 +106,7 @@ export default function Matches({ setActiveTab }) {
             if (!confirmFinish) return;
 
             const token = localStorage.getItem('adminToken');
-            const response = await fetch(`https://proleague-api.somee.com/api/Matches/${id}/finish-knockout`, {
+            const response = await fetch(`http://proleague-api.somee.com/api/Matches/${id}/finish-knockout`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ team1Penalties: pen1, team2Penalties: pen2 })
@@ -124,7 +124,7 @@ export default function Matches({ setActiveTab }) {
         if (!confirmFinish) return;
 
         const token = localStorage.getItem('adminToken');
-        const response = await fetch(`https://proleague-api.somee.com/api/Matches/${id}/finish`, {
+        const response = await fetch(`http://proleague-api.somee.com/api/Matches/${id}/finish`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();
