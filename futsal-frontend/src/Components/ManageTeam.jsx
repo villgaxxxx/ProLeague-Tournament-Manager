@@ -66,36 +66,51 @@ export default function ManageTeam() {
                 </div>
             ) : selectedTeam && players.length > 0 ? (
                 <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-                    {/* ضفنا whitespace-nowrap عشان نمنع الكلام من إنه يكسر على سطرين في الموبايل */}
-                    <table className="w-full text-center border-collapse whitespace-nowrap">
-                        <thead>
-                            <tr className="bg-gray-800 text-white text-xs sm:text-base">
-                                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">اسم اللاعب</th>
-                                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">الأهداف ⚽</th>
-                                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">إنذارات 🟨</th>
-                                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">طرود 🟥</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {players.map((player, index) => (
-                                <tr key={player.id || player.Id} className={`transition duration-150 text-sm sm:text-base ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}>
-                                    <td className="p-3 sm:p-4 border-b font-bold text-gray-800">
-                                        {player.name || player.Name}
-                                    </td>
-                                    <td className="p-3 sm:p-4 border-b text-lg sm:text-xl font-black text-blue-700 bg-blue-50/30">
-                                        {player.goals || player.Goals || 0}
-                                    </td>
-                                    <td className="p-3 sm:p-4 border-b text-lg sm:text-xl font-black text-yellow-600 bg-yellow-50/30">
-                                        {player.yellowCards || player.YellowCards || 0}
-                                    </td>
-                                    <td className="p-3 sm:p-4 border-b text-lg sm:text-xl font-black text-red-600 bg-red-50/30">
-                                        {player.redCards || player.RedCards || 0}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+    <table className="w-full text-center border-collapse whitespace-nowrap">
+        <thead>
+            <tr className="bg-gray-800 text-white text-xs sm:text-base">
+                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">اسم اللاعب</th>
+                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">الأهداف ⚽</th>
+                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">إنذارات 🟨</th>
+                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">طرود 🟥</th>
+                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">كروت زرقاء 🟦</th>
+                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">حالة الإيقاف</th>
+            </tr>
+        </thead>
+        <tbody>
+            {players.map((player, index) => (
+                <tr key={player.id || player.Id} className={`transition duration-150 text-sm sm:text-base ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}>
+                    <td className="p-3 sm:p-4 border-b font-bold text-gray-800">
+                        {player.name || player.Name}
+                    </td>
+                    <td className="p-3 sm:p-4 border-b text-lg sm:text-xl font-black text-green-700 bg-green-50/20">
+                        {player.goals || player.Goals || 0}
+                    </td>
+                    <td className="p-3 sm:p-4 border-b text-lg sm:text-xl font-black text-yellow-600 bg-yellow-50/20">
+                        {player.yellowCards || player.YellowCards || 0}
+                    </td>
+                    <td className="p-3 sm:p-4 border-b text-lg sm:text-xl font-black text-red-600 bg-red-50/20">
+                        {player.redCards || player.RedCards || 0}
+                    </td>
+                    <td className="p-3 sm:p-4 border-b text-lg sm:text-xl font-black text-blue-600 bg-blue-50/20">
+                        {player.blueCards || player.BlueCards || 0}
+                    </td>
+                    <td className="p-3 sm:p-4 border-b font-bold">
+                        {player.isSuspended || player.IsSuspended ? (
+                            <span className="text-red-600 bg-red-50 px-2 py-1 rounded border border-red-200 text-xs font-black">
+                                🚫 موقوف ({player.suspendedMatchesLeft || player.SuspendedMatchesLeft} مباراة)
+                            </span>
+                        ) : (
+                            <span className="text-green-600 bg-green-50 px-2 py-1 rounded border border-green-200 text-xs font-black">
+                                ✅ متاح للعب
+                            </span>
+                        )}
+                    </td>
+                </tr>
+            ))}
+        </tbody>
+    </table>
+</div>
             ) : null}
         </div>
     );

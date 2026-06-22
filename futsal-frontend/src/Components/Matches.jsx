@@ -391,28 +391,33 @@ export default function Matches({ setActiveTab }) {
                                                                             
                                                                             {/* 🔥 التعديل هنا: عرض الاسم مع الإحصائيات (أهداف وكروت) 🔥 */}
                                                                             <span className="font-bold text-sm text-gray-800 flex-1 flex items-center flex-wrap gap-1">
-                                                                                <span>{player.name || player.Name}</span>
-                                                                                
-                                                                                {(player.yellowCards > 0 || player.YellowCards > 0) && (
-                                                                                    <span className="text-yellow-600 font-black text-[10px] sm:text-xs mx-0.5 bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300 shadow-sm">
-                                                                                        {player.yellowCards || player.YellowCards} 🟨
-                                                                                    </span>
-                                                                                )}
-                                                                                {(player.redCards > 0 || player.RedCards > 0) && (
-                                                                                    <span className="text-red-600 font-black text-[10px] sm:text-xs mx-0.5 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shadow-sm">
-                                                                                        {player.redCards || player.RedCards} 🟥
-                                                                                    </span>
-                                                                                )}
-                                                                                {(player.blueCards > 0 || player.BlueCards > 0) && (
-                                                                                    <span className="text-blue-700 font-black text-[10px] sm:text-xs mx-0.5 bg-blue-100 px-1.5 py-0.5 rounded border border-blue-300 shadow-sm">
-                                                                                        {player.blueCards || player.BlueCards} 🟦
-                                                                                    </span>
-                                                                                )}
-                                                                                {(player.goals > 0 || player.Goals > 0) && (
-                                                                                    <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
-                                                                                        {player.goals || player.Goals} ⚽
-                                                                                    </span>
-                                                                                )}
+    <span>{player.name || player.Name}</span>
+    
+    {/* 🔥 كروت الماتش الحالي فقط 🔥 */}
+    {(player.yellowCardsThisMatch > 0 || player.YellowCardsThisMatch > 0) && (
+        <span className="text-yellow-600 font-black text-[10px] sm:text-xs mx-0.5 bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300 shadow-sm">
+            {player.yellowCardsThisMatch || player.YellowCardsThisMatch} 🟨
+        </span>
+    )}
+    
+    {/* لو أخد طرد (أحمر أو أزرق أو إنذارين) في الماتش الحالي */}
+    {(player.suspendedThisMatch === true || player.SuspendedThisMatch === true) && (
+        <span className="text-red-600 font-black text-[10px] sm:text-xs mx-0.5 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shadow-sm">
+            🟥 طرد في المباراة
+        </span>
+    )}
+
+    {/* الأهداف الإجمالية للاعب في البطولة (ممكن تسيبها أو تشيلها حسب رغبتك) */}
+    {(player.goals > 0 || player.Goals > 0) && (
+        <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
+            {player.goals || player.Goals} ⚽
+        </span>
+    )}
+
+
+
+
+
                                                                                 {player.isSuspended && (
                                                                                     <span className="text-red-600 mr-1 text-xs font-black">🚫 ({player.suspendedMatchesLeft || player.SuspendedMatchesLeft} ماتش)</span>
                                                                                 )}
@@ -438,32 +443,29 @@ export default function Matches({ setActiveTab }) {
                                                                             
                                                                             {/* 🔥 التعديل هنا: عرض الاسم مع الإحصائيات (أهداف وكروت) 🔥 */}
                                                                             <span className="font-bold text-sm text-gray-800 flex-1 flex items-center flex-wrap gap-1">
-                                                                                <span>{player.name || player.Name}</span>
-                                                                                
-                                                                                {(player.yellowCards > 0 || player.YellowCards > 0) && (
-                                                                                    <span className="text-yellow-600 font-black text-[10px] sm:text-xs mx-0.5 bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300 shadow-sm">
-                                                                                        {player.yellowCards || player.YellowCards} 🟨
-                                                                                    </span>
-                                                                                )}
-                                                                                {(player.redCards > 0 || player.RedCards > 0) && (
-                                                                                    <span className="text-red-600 font-black text-[10px] sm:text-xs mx-0.5 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shadow-sm">
-                                                                                        {player.redCards || player.RedCards} 🟥
-                                                                                    </span>
-                                                                                )}
-                                                                                {(player.blueCards > 0 || player.BlueCards > 0) && (
-                                                                                    <span className="text-blue-700 font-black text-[10px] sm:text-xs mx-0.5 bg-blue-100 px-1.5 py-0.5 rounded border border-blue-300 shadow-sm">
-                                                                                        {player.blueCards || player.BlueCards} 🟦
-                                                                                    </span>
-                                                                                )}
-                                                                                {(player.goals > 0 || player.Goals > 0) && (
-                                                                                    <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
-                                                                                        {player.goals || player.Goals} ⚽
-                                                                                    </span>
-                                                                                )}
-                                                                                {player.isSuspended && (
-                                                                                    <span className="text-red-600 mr-1 text-xs font-black">🚫 ({player.suspendedMatchesLeft || player.SuspendedMatchesLeft} ماتش)</span>
-                                                                                )}
-                                                                            </span>
+    <span>{player.name || player.Name}</span>
+    
+    {/* 🔥 كروت الماتش الحالي فقط 🔥 */}
+    {(player.yellowCardsThisMatch > 0 || player.YellowCardsThisMatch > 0) && (
+        <span className="text-yellow-600 font-black text-[10px] sm:text-xs mx-0.5 bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300 shadow-sm">
+            {player.yellowCardsThisMatch || player.YellowCardsThisMatch} 🟨
+        </span>
+    )}
+    
+    {/* لو أخد طرد (أحمر أو أزرق أو إنذارين) في الماتش الحالي */}
+    {(player.suspendedThisMatch === true || player.SuspendedThisMatch === true) && (
+        <span className="text-red-600 font-black text-[10px] sm:text-xs mx-0.5 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shadow-sm">
+            🟥 طرد في المباراة
+        </span>
+    )}
+
+    {/* الأهداف الإجمالية للاعب في البطولة (ممكن تسيبها أو تشيلها حسب رغبتك) */}
+    {(player.goals > 0 || player.Goals > 0) && (
+        <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
+            {player.goals || player.Goals} ⚽
+        </span>
+    )}
+</span>
 
                                                                             {!player.isSuspended && (
                                                                                 <div className="flex gap-1 shrink-0">
