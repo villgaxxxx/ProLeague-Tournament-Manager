@@ -10,7 +10,10 @@ export default function ManageTeam() {
     useEffect(() => {
         fetch('/api/teams')
             .then(res => res.json())
-            .then(data => setTeams(data))
+            .then(data => {
+                // تأمين الداتا لو راجعة من السيرفر جوه $values
+                setTeams(Array.isArray(data) ? data : data?.$values || []);
+            })
             .catch(err => console.error("مشكلة في جلب الفرق:", err));
     }, []);
 
@@ -27,7 +30,7 @@ export default function ManageTeam() {
             const response = await fetch(`/api/Players/team/${teamId}`);
             if (response.ok) {
                 const data = await response.json();
-                setPlayers(data);
+                setPlayers(Array.isArray(data) ? data : data?.$values || []);
             }
         } catch (error) {
             console.error("مشكلة في جلب اللاعبين:", error);
@@ -35,73 +38,58 @@ export default function ManageTeam() {
         setLoadingPlayers(false);
     };
 
-    // 3. دالة تسجيل الهدف
-    const handleAddGoal = async (playerId, playerName) => {
-        const token = localStorage.getItem('adminToken');
-        try {
-            const response = await fetch(`/api/Players/${playerId}/addgoal`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (response.ok) {
-                // تحديث قائمة اللاعبين فوراً عشان الرقم يتغير على الشاشة
-                fetchTeamPlayers(selectedTeam);
-                alert(`جوووووول! ⚽ تم تسجيل الهدف للكابتن ${playerName}`);
-            } else {
-                alert("حصلت مشكلة أثناء تسجيل الهدف ❌");
-            }
-        } catch (error) {
-            alert("مشكلة في الاتصال بالسيرفر ⚠️");
-        }
-    };
-
     return (
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl mx-auto mt-10" dir="rtl">
-            <h2 className="text-2xl font-black text-center mb-6 text-gray-800">إدارة تشكيلات الفرق 📋</h2>
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8 max-w-3xl mx-auto mt-10 mb-10" dir="rtl">
+            <h2 className="text-2xl sm:text-3xl font-black text-center mb-6 text-gray-800">إحصائيات وتشكيلة الفريق 📋</h2>
 
             <div className="mb-6">
-                <label className="block text-gray-700 font-bold mb-2">اختر الفريق لعرض لاعبيه:</label>
+                <label className="block text-gray-700 font-bold mb-2">اختر الفريق لعرض لاعبيه وإحصائياتهم:</label>
                 <select 
                     value={selectedTeam}
                     onChange={handleTeamChange} 
-                    className="w-full p-3 border rounded bg-gray-50 focus:outline-none focus:border-blue-500"
+                    className="w-full p-3 border rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700 shadow-sm"
                 >
                     <option value="" disabled>-- اختر الفريق --</option>
                     {teams.map(team => (
-                        <option key={team.id} value={team.id}>{team.name}</option>
+                        <option key={team.id || team.Id} value={team.id || team.Id}>
+                            {team.name || team.Name}
+                        </option>
                     ))}
                 </select>
             </div>
 
             {loadingPlayers ? (
-                <div className="text-center font-bold text-gray-600">جاري تحميل التشكيلة... ⏳</div>
+                <div className="text-center font-bold text-gray-600 my-8">جاري تحميل التشكيلة... ⏳</div>
             ) : selectedTeam && players.length === 0 ? (
-                <div className="text-center font-bold text-red-500 bg-red-50 p-4 rounded">هذا الفريق لم يسجل أي لاعبين حتى الآن!</div>
+                <div className="text-center font-bold text-red-500 bg-red-50 p-4 rounded-lg border border-red-200">
+                    هذا الفريق لم يسجل أي لاعبين حتى الآن!
+                </div>
             ) : selectedTeam && players.length > 0 ? (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-center border-collapse">
+                <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                    {/* ضفنا whitespace-nowrap عشان نمنع الكلام من إنه يكسر على سطرين في الموبايل */}
+                    <table className="w-full text-center border-collapse whitespace-nowrap">
                         <thead>
-                            <tr className="bg-gray-800 text-white">
-                                <th className="p-3 border font-bold">اسم اللاعب</th>
-                                <th className="p-3 border font-bold">الأهداف الحالية</th>
-                                <th className="p-3 border font-bold">إضافة هدف</th>
+                            <tr className="bg-gray-800 text-white text-xs sm:text-base">
+                                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">اسم اللاعب</th>
+                                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">الأهداف ⚽</th>
+                                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">إنذارات 🟨</th>
+                                <th className="p-3 sm:p-4 border-b-2 border-gray-900 font-bold">طرود 🟥</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {players.map((player) => (
-                                <tr key={player.id} className="hover:bg-gray-50 transition">
-                                    <td className="p-3 border font-bold text-gray-800">{player.name}</td>
-                                    <td className="p-3 border text-xl font-black text-blue-700">{player.goals}</td>
-                                    <td className="p-3 border">
-                                        <button 
-    onClick={() => handleAddGoal(player.id || player.Id, player.name || player.Name)}
-    className="bg-green-600 text-white px-4 py-2 rounded font-bold hover:bg-green-700 transition"
->
-    +1 جول ⚽
-</button>
+                            {players.map((player, index) => (
+                                <tr key={player.id || player.Id} className={`transition duration-150 text-sm sm:text-base ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}>
+                                    <td className="p-3 sm:p-4 border-b font-bold text-gray-800">
+                                        {player.name || player.Name}
+                                    </td>
+                                    <td className="p-3 sm:p-4 border-b text-lg sm:text-xl font-black text-blue-700 bg-blue-50/30">
+                                        {player.goals || player.Goals || 0}
+                                    </td>
+                                    <td className="p-3 sm:p-4 border-b text-lg sm:text-xl font-black text-yellow-600 bg-yellow-50/30">
+                                        {player.yellowCards || player.YellowCards || 0}
+                                    </td>
+                                    <td className="p-3 sm:p-4 border-b text-lg sm:text-xl font-black text-red-600 bg-red-50/30">
+                                        {player.redCards || player.RedCards || 0}
                                     </td>
                                 </tr>
                             ))}
