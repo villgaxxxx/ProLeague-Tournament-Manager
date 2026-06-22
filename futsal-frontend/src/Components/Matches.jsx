@@ -392,7 +392,7 @@ export default function Matches({ setActiveTab }) {
                                 </div>
 
                                 <div className="text-center mt-6 text-gray-400 font-bold text-xs opacity-80">
-                                    تم الإنشاء بواسطة نظام إدارة البطولات الاحترافي ⚽
+                                    مع تحيات إدارة البطولة ⚽
                                 </div>
 
                             </div>
