@@ -19,7 +19,7 @@ export default function Matches({ setActiveTab }) {
 
     useEffect(() => {
     // 1. استخدام الرابط الكامل للباك إند
-    const backendUrl = "https://proleague-api.somee.com/matchHub"; // ⚠️ حط رابط السيرفر بتاعك هنا
+    const backendUrl = "https://proleague-api.somee.com/matchHub"; // رابط السيرفر
     
     const connection = new signalR.HubConnectionBuilder()
         .withUrl(backendUrl)
@@ -37,13 +37,13 @@ export default function Matches({ setActiveTab }) {
         fetchMatches(); // استدعاء الداتا الجديدة
     });
 
-    // 4. 🔥 التنظيف: قفل الاتصال لما اليوزر يطلع من الشاشة عشان منستهلكش موارد السيرفر
+    // 4.  التنظيف: قفل الاتصال لما اليوزر يطلع من الشاشة عشان منستهلكش موارد السيرفر
     return () => {
         connection.stop();
     };
-}, []); // ⚠️ متنساش الأقواس الفاضية دي عشان الاتصال يشتغل مرة واحدة بس
+}, []); //  الأقواس الفاضية دي عشان الاتصال يشتغل مرة واحدة بس
 
-    // دالة بدء المباراة (كانت ناقصة عندك وضفناها)
+    //دالة بدء المباراة 
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');
         await fetch(`/api/Matches/${id}/start`, {

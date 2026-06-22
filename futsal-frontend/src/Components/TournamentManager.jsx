@@ -5,12 +5,13 @@ export default function TournamentManager() {
     const [groups, setGroups] = useState([]);
     const isAdmin = !!localStorage.getItem('adminToken');
 
+    // ⚠️ تنبيه: لو لسه بيظهرلك إيرور 500 من Vercel، تأكد إنك بتكتب الرابط الكامل للسيرفر بدل '/api/...'
     const fetchSettingsAndGroups = () => {
-        fetch('/api/Tournament/settings')
+        fetch('/api/Tournament/settings') // عدل الرابط هنا لو لزم الأمر
             .then(res => res.json())
             .then(data => setSettings(data));
 
-        fetch('/api/Tournament/groups')
+        fetch('/api/Tournament/groups') // وهنا
             .then(res => res.json())
             .then(data => {
                 const groupsData = Array.isArray(data) ? data : (data?.$values || []);
@@ -31,22 +32,49 @@ export default function TournamentManager() {
         alert(data.message || data.Message);
     };
 
+    // 🔥 دالة القرعة المدمجة (فحص + سحب)
     const handleDrawGroups = async () => {
-        const confirmDraw = window.confirm("هل أنت متأكد؟ سحب القرعة سيوزع الفرق عشوائياً ولن تتمكن من تغيير حجم المجموعة بعدها!");
-        if (!confirmDraw) return;
+        try {
+            // 1. جلب الفرق من السيرفر لفحص عدد اللاعبين قبل القرعة
+            const teamsRes = await fetch('/api/teams');
+            const teamsData = await teamsRes.json();
+            const teamsList = Array.isArray(teamsData) ? teamsData : (teamsData?.$values || []);
 
-        const token = localStorage.getItem('adminToken');
-        const res = await fetch('/api/Tournament/draw-groups', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        
-        if (res.ok) {
-            alert("تم سحب القرعة بنجاح! 🎲");
-            fetchSettingsAndGroups(); // تحديث الشاشة لعرض المجموعات
-        } else {
-            alert(data.message || data.Message);
+            // 2. فلترة الفرق اللي عدد لاعبيها أقل من 5
+            const invalidTeams = teamsList.filter(team => {
+                // التعامل مع الداتا سواء جاية array عادي أو منقحة من .NET بـ $values
+                const players = Array.isArray(team.players) ? team.players : (team.players?.$values || team.Players?.$values || team.Players || []);
+                return players.length < 5;
+            });
+
+            // 3. لو في فرق ناقصة، نوقف العملية ونطلع تنبيه
+            if (invalidTeams.length > 0) {
+                const teamNames = invalidTeams.map(t => t.name || t.Name).join('، ');
+                alert(`⚠️ لا يمكن إجراء القرعة!\nالفرق التالية تمتلك أقل من 5 لاعبين:\n${teamNames}`);
+                return; // إيقاف التنفيذ، مش هنبعت طلب القرعة للسيرفر
+            }
+
+            // 4. لو الفرق كاملة، نأخذ تأكيد الأدمن
+            const confirmDraw = window.confirm("هل أنت متأكد؟ سحب القرعة سيوزع الفرق عشوائياً ولن تتمكن من تغيير حجم المجموعة بعدها!");
+            if (!confirmDraw) return;
+
+            // 5. إرسال طلب سحب القرعة للسيرفر
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch('/api/Tournament/draw-groups', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                alert("تم سحب القرعة بنجاح! 🎲");
+                fetchSettingsAndGroups(); // تحديث الشاشة لعرض المجموعات
+            } else {
+                alert(data.message || data.Message);
+            }
+        } catch (error) {
+            console.error("حدث خطأ أثناء عملية القرعة:", error);
+            alert("حدث خطأ أثناء الاتصال بالسيرفر، يرجى المحاولة مرة أخرى.");
         }
     };
 
@@ -79,7 +107,7 @@ export default function TournamentManager() {
                             <select 
                                 value={settings.groupSize} 
                                 onChange={e => setSettings({...settings, groupSize: parseInt(e.target.value)})}
-                                disabled={settings.isGroupStageDrawn} // مقفول لو القرعة اتعملت
+                                disabled={settings.isGroupStageDrawn} 
                                 className="border rounded p-1 font-bold outline-none"
                             >
                                 <option value={3}>3 فرق</option>
