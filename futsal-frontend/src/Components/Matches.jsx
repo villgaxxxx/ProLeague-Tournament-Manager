@@ -227,52 +227,85 @@ export default function Matches({ setActiveTab }) {
                                     {matchesByRound[roundKey].map(match => {
                                         const isFinished = match.isFinished === true || match.IsFinished === true;
                                         
-                                        if (isFinished) {
-                                            const pen1 = match.team1PenaltiesScore ?? match.Team1PenaltiesScore;
-                                            const pen2 = match.team2PenaltiesScore ?? match.Team2PenaltiesScore;
+                                        // ----------------------------------------------------
+                                // 1. كارت المباراة المنتهية (نتائج وتحليل الذكاء الاصطناعي)
+                                // ----------------------------------------------------
+                                if (isFinished) {
+                                    const pen1 = match.team1PenaltiesScore ?? match.Team1PenaltiesScore;
+                                    const pen2 = match.team2PenaltiesScore ?? match.Team2PenaltiesScore;
 
-                                            return (
-                                                <div key={match.id || match.Id} className="bg-white p-6 rounded-xl shadow-md border-r-8 border-gray-400 flex flex-col transition-all hover:shadow-lg relative overflow-hidden">
-                                                    {(match.groupName || match.GroupName) && (
-                                                        <div className="absolute top-0 left-0 bg-gray-200 text-gray-700 px-3 py-1 text-xs font-bold rounded-br-lg">
-                                                            المجموعة {match.groupName || match.GroupName}
-                                                        </div>
-                                                    )}
+                                    return (
+                                        <div key={match.id || match.Id} className="bg-white p-6 rounded-xl shadow-md border-r-8 border-gray-400 flex flex-col transition-all hover:shadow-lg relative overflow-hidden">
+                                            {/* اسم المجموعة فوق الماتش */}
+                                            {(match.groupName || match.GroupName) && (
+                                                <div className="absolute top-0 left-0 bg-gray-200 text-gray-700 px-3 py-1 text-xs font-bold rounded-br-lg">
+                                                    المجموعة {match.groupName || match.GroupName}
+                                                </div>
+                                            )}
 
-                                                    <div className="flex justify-between items-center w-full px-1 sm:px-4 mt-2">
-    <span className="text-base sm:text-xl md:text-2xl font-black flex-1 text-center text-gray-700 break-words px-1">
-        {match.team1?.name || match.Team1?.Name}
-    </span>
-    
-    <div className="flex flex-col items-center shrink-0 mx-2">
-        <div className="flex items-center gap-2 sm:gap-3 bg-gray-100 text-gray-800 px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-lg sm:text-2xl font-black shadow-inner">
-            <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
-        </div>
-        {pen1 !== null && pen1 !== undefined && (
-            <span className="text-[10px] sm:text-xs font-bold text-orange-600 mt-1">ترجيح: ({pen1}) - ({pen2})</span>
-        )}
-    </div>
-    
-    <span className="text-base sm:text-xl md:text-2xl font-black flex-1 text-center text-gray-700 break-words px-1">
-        {match.team2?.name || match.Team2?.Name}
-    </span>
-</div>
-
-                                                    {(match.matchSummary || match.MatchSummary) && (
-                                                        <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group hide-in-screenshot">
-                                                            <div className="absolute -left-4 -top-4 text-indigo-100 opacity-50 text-6xl transform -rotate-12 transition group-hover:scale-110 group-hover:rotate-0 duration-300">🎙️</div>
-                                                            <div className="flex items-center gap-2 mb-2 relative z-10">
-                                                                <span className="text-xl">🤖</span>
-                                                                <span className="text-sm font-black text-indigo-800 tracking-wide uppercase">تحليل المعلق الذكي (AI):</span>
-                                                            </div>
-                                                            <p className="text-base font-bold text-gray-700 leading-relaxed italic relative z-10">
-                                                                "{match.matchSummary || match.MatchSummary}"
-                                                            </p>
-                                                        </div>
+                                            {/* 🔥 تعديل: الصف المرن بالكامل للأسماء والنتيجة 🔥 */}
+                                            {/* px-1 sm:px-4 عشان ندي مساحة أكبر على الموبايل */}
+                                            <div className="flex justify-between items-center w-full px-1 sm:px-4 mt-6">
+                                                
+                                                {/* الفريق الأول - مرن ويصغر خطه على الموبايل */}
+                                                <span className="flex-1 text-center font-black text-gray-700
+                                                    leading-tight px-1
+                                                    break-words /* 🔥 التعديل السحري: نمنع القص ونسمح بنزول الكلمة سطر */
+                                                    text-xs /* خط صغير في الموبايل */
+                                                    xs:text-sm /* موبايلات أكبر شوية */
+                                                    sm:text-base /* تابلت */
+                                                    md:text-xl /* كمبيوتر عادي */
+                                                    lg:text-2xl /* شاشات كبيرة */">
+                                                    {match.team1?.name || match.Team1?.Name}
+                                                </span>
+                                                
+                                                {/* النتيجة في النص -shrink-0 عشان مربع النتيجة متفعصش */}
+                                                <div className="flex flex-col items-center shrink-0 mx-1 xs:mx-2">
+                                                    {/* تعديل: صغر حجم المربع والخط على الموبايل */}
+                                                    <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 bg-gray-100 text-gray-800 
+                                                        font-black shadow-inner font-mono
+                                                        rounded-lg xs:rounded-xl 
+                                                        px-2 xs:px-3 sm:px-5 
+                                                        py-1 xs:py-1.5 sm:py-2
+                                                        text-lg xs:text-xl sm:text-2xl md:text-3xl">
+                                                        <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
+                                                    </div>
+                                                    {/* الترجيح - خط نونو */}
+                                                    {pen1 !== null && pen1 !== undefined && (
+                                                        <span className="font-bold text-orange-600 mt-0.5 text-[9px] xs:text-[10px] sm:text-xs">ترجيح: ({pen1}) - ({pen2})</span>
                                                     )}
                                                 </div>
-                                            );
-                                        } 
+                                                
+                                                {/* الفريق الثاني - مرن ويصغر خطه على الموبايل */}
+                                                <span className="flex-1 text-center font-black text-gray-700
+                                                    leading-tight px-1
+                                                    break-words /* 🔥 التعديل السحري: نمنع القص ونسمح بنزول الكلمة سطر */
+                                                    text-xs /* خط صغير في الموبايل */
+                                                    xs:text-sm /* موبايلات أكبر شوية */
+                                                    sm:text-base /* تابلت */
+                                                    md:text-xl /* كمبيوتر عادي */
+                                                    lg:text-2xl /* شاشات كبيرة */">
+                                                    {match.team2?.name || match.Team2?.Name}
+                                                </span>
+                                            </div>
+
+                                            {/* 🤖 تعليق الذكاء الاصطناعي */}
+                                            {(match.matchSummary || match.MatchSummary) && (
+                                                <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group hide-in-screenshot">
+                                                    {/* ... باقي كود الذكاء الاصطناعي زي ما هو ... */}
+                                                    <div className="absolute -left-4 -top-4 text-indigo-100 opacity-50 text-6xl transform -rotate-12 transition group-hover:scale-110 group-hover:rotate-0 duration-300">🎙️</div>
+                                                    <div className="flex items-center gap-2 mb-2 relative z-10">
+                                                        <span className="text-xl">🤖</span>
+                                                        <span className="text-sm font-black text-indigo-800 tracking-wide uppercase">تحليل المعلق الذكي (AI):</span>
+                                                    </div>
+                                                    <p className="text-base font-bold text-gray-700 leading-relaxed italic relative z-10">
+                                                        "{match.matchSummary || match.MatchSummary}"
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                }
                                         else {
                                             const t1Players = Array.isArray(match.team1?.players) ? match.team1.players : (match.team1?.players?.$values || []);
                                             const t2Players = Array.isArray(match.team2?.players) ? match.team2.players : (match.team2?.players?.$values || []);
