@@ -399,9 +399,9 @@ export default function Matches({ setActiveTab }) {
                                     تم الإنشاء بواسطة نظام إدارة البطولات الاحترافي ⚽
                                 </div>
 
-                            </div> {/* 👈 دي قفلة الـ div اللي واخد id={safeId} */}
+                            </div> 
 
-                        </div> {/* 👈 دي قفلة الـ div اللي واخد key={roundKey} */}
+                        </div> 
                     );
                 }) // 👈 دي قفلة الـ map السليمة!
             )}
@@ -430,3 +430,4 @@ export default function Matches({ setActiveTab }) {
             )}
         </div>
     );
+}
