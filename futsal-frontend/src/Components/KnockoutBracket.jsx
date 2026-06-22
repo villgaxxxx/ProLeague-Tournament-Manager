@@ -9,7 +9,7 @@ export default function KnockoutBracket() {
 
     useEffect(() => {
         // 1. جلب أسماء الفرق أولاً لبناء خريطة أمان بالـ IDs
-        fetch('http://proleague-api.somee.com/api/teams')
+        fetch('https://proleague-api.somee.com/api/teams')
             .then(res => res.json())
             .then(teamsData => {
                 const list = Array.isArray(teamsData) ? teamsData : (teamsData?.$values || []);
@@ -20,7 +20,7 @@ export default function KnockoutBracket() {
                 setTeamMap(map);
 
                 // 2. بعد بناء الخريطة، نجلب المباريات الإقصائية المنشورة
-                return fetch('http://proleague-api.somee.com/api/Matches');
+                return fetch('https://proleague-api.somee.com/api/Matches');
             })
             .then(res => res.json())
             .then(data => {

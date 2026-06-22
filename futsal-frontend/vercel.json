@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "http://proleague-api.somee.com/api/:path*"
+      "destination": "https://proleague-api.somee.com/api/:path*"
     },
     {
       "source": "/(.*)",

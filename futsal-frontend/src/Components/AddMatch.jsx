@@ -5,7 +5,7 @@ export default function AddMatch() {
     const [formData, setFormData] = useState({ team1Id: '', team2Id: '', matchDate: '' });
 
     useEffect(() => {
-        fetch('http://proleague-api.somee.com/api/teams')
+        fetch('https://proleague-api.somee.com/api/teams')
             .then(res => res.json())
             .then(data => {
                 // أمان إضافي: لو الداتا راجعة مصفوفة مباشرة أو مغلفة جوه $values هيلقطها في الحالتين
@@ -20,7 +20,7 @@ export default function AddMatch() {
         if (formData.team1Id === formData.team2Id) return alert("لا يمكن للفريق اللعب ضد نفسه!");
 
         const token = localStorage.getItem('adminToken');
-        const response = await fetch('http://proleague-api.somee.com/api/Matches', {
+        const response = await fetch('https://proleague-api.somee.com/api/Matches', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({
