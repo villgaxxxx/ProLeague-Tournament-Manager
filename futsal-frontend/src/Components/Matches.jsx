@@ -268,26 +268,6 @@ export default function Matches({ setActiveTab }) {
                                                         </span>
                                                     </div>
 
-                                                   {/* 🔥 عرض الهدافين للجمهور تحت الفرق مباشرة 🔥 */}
-{((match.team1Scorers && match.team1Scorers !== "") || (match.team2Scorers && match.team2Scorers !== "") || (match.Team1Scorers && match.Team1Scorers !== "") || (match.Team2Scorers && match.Team2Scorers !== "")) && (
-    <div className="flex justify-between items-start w-full px-1 sm:px-4 mt-2 mb-4">
-        
-        {/* هدافي الفريق الأول */}
-        <div className="flex-1 flex justify-center text-center">
-            {renderScorers(match.team1Scorers || match.Team1Scorers)}
-        </div>
-        
-        {/* مساحة فاضية تحت النتيجة عشان التوازن */}
-        <div className="shrink-0 mx-2 w-[70px] xs:w-[85px] sm:w-[110px]"></div>
-        
-        {/* هدافي الفريق الثاني */}
-        <div className="flex-1 flex justify-center text-center">
-            {renderScorers(match.team2Scorers || match.Team2Scorers)}
-        </div>
-        
-    </div>
-)}
-
                                                     {(match.matchSummary || match.MatchSummary) && (
                                                         <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group hide-in-screenshot">
                                                             <div className="absolute -left-4 -top-4 text-indigo-100 opacity-50 text-6xl transform -rotate-12 transition group-hover:scale-110 group-hover:rotate-0 duration-300">🎙️</div>
@@ -356,6 +336,29 @@ export default function Matches({ setActiveTab }) {
                                                             <span className="w-2.5 h-2.5 bg-red-600 rounded-full animate-ping"></span>مباشر
                                                         </div>
                                                     )}
+
+                                                    {/* 🔥 عرض الهدافين للجمهور تحت الفرق مباشرة 🔥 */}
+{((match.team1Scorers && match.team1Scorers !== "") || (match.team2Scorers && match.team2Scorers !== "") || (match.Team1Scorers && match.Team1Scorers !== "") || (match.Team2Scorers && match.Team2Scorers !== "")) && (
+    <div className="flex justify-between items-start w-full px-1 sm:px-4 mt-2 mb-4">
+        
+        {/* هدافي الفريق الأول */}
+        <div className="flex-1 flex justify-center text-center">
+            {renderScorers(match.team1Scorers || match.Team1Scorers)}
+        </div>
+        
+        {/* مساحة فاضية تحت النتيجة عشان التوازن */}
+        <div className="shrink-0 mx-2 w-[70px] xs:w-[85px] sm:w-[110px]"></div>
+        
+        {/* هدافي الفريق الثاني */}
+        <div className="flex-1 flex justify-center text-center">
+            {renderScorers(match.team2Scorers || match.Team2Scorers)}
+        </div>
+        
+    </div>
+)}
+
+
+
 
                                                     {isAdmin && !match.isPlaying && (
                                                         <div className="mt-6 flex gap-4 w-full justify-center border-t pt-4 hide-in-screenshot">
