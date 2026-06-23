@@ -505,26 +505,41 @@ export default function Matches({ setActiveTab }) {
             )}
 
             {champion && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center text-center p-4 animate-fade-in" dir="rtl">
-                    <div className="bg-gradient-to-b from-yellow-400 via-amber-500 to-amber-600 p-1 rounded-3xl shadow-2xl max-w-lg w-full transform scale-100 transition-all animate-bounce-short">
-                        <div className="bg-slate-900 text-white rounded-3xl p-8 flex flex-col items-center relative overflow-hidden">
-                            <div className="absolute -inset-10 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 rounded-full blur-xl animate-pulse"></div>
-                            <span className="absolute top-6 left-6 text-4xl animate-ping">🎉</span>
-                            <span className="absolute top-6 right-6 text-4xl animate-ping delay-300">🎊</span>
-                            <span className="absolute bottom-10 left-10 text-3xl animate-bounce">✨</span>
-                            <span className="absolute bottom-10 right-10 text-3xl animate-bounce delay-150">⚽</span>
-                            <div className="text-7xl mb-6 bg-amber-500/10 p-6 rounded-full border border-yellow-400/30 animate-spin-slow">🏆</div>
-                            <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-200 uppercase tracking-widest mb-2 animate-pulse">بطل البطولة رسمياً</h3>
-                            <p className="text-sm text-gray-400 font-bold mb-6">اسدل الستار وانتهت الملحمة الكروية</p>
-                            <div className="bg-yellow-500 text-slate-950 font-black text-4xl px-8 py-4 rounded-2xl shadow-xl tracking-wide mb-8 border-2 border-white/50 animate-pulse">
-                                👑 {champion} 👑
-                            </div>
-                            <p className="text-lg font-bold text-yellow-300 mb-6">ألف مبروك للاعبين وللجماهير هذا الإنجاز التاريخي! 🎆</p>
-                            <button onClick={() => {setChampion(null); setActiveTab('standings')}}  className="bg-gradient-to-r from-gray-800 to-gray-700 hover:from-black hover:to-gray-900 text-white font-black px-8 py-3 rounded-xl border border-gray-600 transition shadow-lg w-full">إغلاق والعودة للوحة التحكم ✖️</button>
-                        </div>
-                    </div>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center text-center p-4 animate-fade-in" dir="rtl">
+        <div className="bg-gradient-to-b from-yellow-400 via-amber-500 to-amber-600 p-1 rounded-3xl shadow-2xl max-w-lg w-full transform scale-100 transition-all animate-bounce-short">
+            <div className="bg-slate-900 text-white rounded-3xl p-8 flex flex-col items-center relative overflow-hidden">
+                
+                {/* 👇 ضفنا pointer-events-none هنا عشان التوهج ميبلعش الكليك 👇 */}
+                <div className="absolute -inset-10 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 rounded-full blur-xl animate-pulse pointer-events-none"></div>
+                
+                {/* ضفنا pointer-events-none للإيموجيز كمان كزيادة تأكيد */}
+                <span className="absolute top-6 left-6 text-4xl animate-ping pointer-events-none">🎉</span>
+                <span className="absolute top-6 right-6 text-4xl animate-ping delay-300 pointer-events-none">🎊</span>
+                <span className="absolute bottom-10 left-10 text-3xl animate-bounce pointer-events-none">✨</span>
+                <span className="absolute bottom-10 right-10 text-3xl animate-bounce delay-150 pointer-events-none">⚽</span>
+                
+                <div className="text-7xl mb-6 bg-amber-500/10 p-6 rounded-full border border-yellow-400/30 animate-spin-slow relative z-10">🏆</div>
+                <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-200 uppercase tracking-widest mb-2 animate-pulse relative z-10">بطل البطولة رسمياً</h3>
+                <p className="text-sm text-gray-400 font-bold mb-6 relative z-10">اسدل الستار وانتهت الملحمة الكروية</p>
+                
+                <div className="bg-yellow-500 text-slate-950 font-black text-4xl px-8 py-4 rounded-2xl shadow-xl tracking-wide mb-8 border-2 border-white/50 animate-pulse relative z-10">
+                    👑 {champion} 👑
                 </div>
-            )}
+                
+                <p className="text-lg font-bold text-yellow-300 mb-6 relative z-10">ألف مبروك للاعبين وللجماهير هذا الإنجاز التاريخي! 🎆</p>
+                
+                {/* 👇 ضفنا relative z-10 للزرار عشان نطلعه فوق كل الطبقات 👇 */}
+                <button 
+                    onClick={() => {setChampion(null); setActiveTab('standings')}}  
+                    className="relative z-10 bg-gradient-to-r from-gray-800 to-gray-700 hover:from-black hover:to-gray-900 text-white font-black px-8 py-3 rounded-xl border border-gray-600 transition shadow-lg w-full cursor-pointer"
+                >
+                    إغلاق والعودة للوحة التحكم ✖️
+                </button>
+                
+            </div>
+        </div>
+    </div>
+)}
         </div>
     );
 }
