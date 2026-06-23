@@ -74,43 +74,59 @@ export default function Leaderboard() {
                                 <h3 className="text-2xl font-black text-indigo-900">المجموعة {groupName}</h3>
                             </div>
                             <div className="overflow-x-auto">
-                                <table className="w-full text-center">
-                                    <thead className="bg-gray-800 text-white font-bold text-sm">
-                                        <tr>
-                                            <th className="p-3">#</th>
-                                            <th className="p-3 text-right">الفريق</th>
-                                            <th className="p-3">لعب</th>
-                                            <th className="p-3">له</th>
-                                            <th className="p-3">عليه</th>
-                                            <th className="p-3">+/-</th>
-                                            <th className="p-3 text-yellow-400">النقاط</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-200">
-                                        {groupTeams.map((team, index) => {
-                                            const played = team.wins + team.draws + team.losses;
-                                            const gd = team.goalsFor - team.goalsAgainst;
-                                            const isTop2 = index < 2;
-                                            const rowBg = isTop2 ? 'bg-green-100 hover:bg-green-200' : 'bg-white hover:bg-gray-50';
+    <table className="w-full text-center">
+        <thead className="bg-gray-800 text-white font-bold text-sm">
+            <tr>
+                <th className="p-3">#</th>
+                <th className="p-3 text-right">الفريق</th>
+                <th className="p-3" title="لعب">لعب</th>
+                {/* العواميد الجديدة */}
+                <th className="p-3 text-green-400" title="فوز">ف</th>
+                <th className="p-3 text-yellow-400" title="تعادل">ت</th>
+                <th className="p-3 text-red-400" title="خسارة">خ</th>
+                {/* بقية العواميد */}
+                <th className="p-3" title="أهداف له">له</th>
+                <th className="p-3" title="أهداف عليه">عليه</th>
+                <th className="p-3" title="فارق الأهداف">+/-</th>
+                <th className="p-3 text-yellow-400">النقاط</th>
+            </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200">
+            {groupTeams.map((team, index) => {
+                // التأكد من إن القيم مش Null
+                const wins = team.wins || 0;
+                const draws = team.draws || 0;
+                const losses = team.losses || 0;
+                
+                const played = wins + draws + losses;
+                const gd = (team.goalsFor || 0) - (team.goalsAgainst || 0);
+                const isTop2 = index < 2;
+                const rowBg = isTop2 ? 'bg-green-100 hover:bg-green-200' : 'bg-white hover:bg-gray-50';
 
-                                            return (
-                                                <tr key={team.id || team.Id} className={`transition duration-150 ${rowBg}`}>
-                                                    <td className="p-3 font-bold text-gray-700">{index + 1}</td>
-                                                    <td className="p-3 text-right font-black text-gray-900 flex items-center gap-2">
-                                                        {isTop2 && <span className="text-green-700 text-lg">✅</span>}
-                                                        {team.name || team.Name}
-                                                    </td>
-                                                    <td className="p-3 font-mono">{played}</td>
-                                                    <td className="p-3 font-mono">{team.goalsFor}</td>
-                                                    <td className="p-3 font-mono">{team.goalsAgainst}</td>
-                                                    <td className="p-3 font-mono" dir="ltr">{gd > 0 ? `+${gd}` : gd}</td>
-                                                    <td className="p-3 font-black text-indigo-700 text-lg">{team.points}</td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                return (
+                    <tr key={team.id || team.Id} className={`transition duration-150 ${rowBg}`}>
+                        <td className="p-3 font-bold text-gray-700">{index + 1}</td>
+                        <td className="p-3 text-right font-black text-gray-900 flex items-center gap-2">
+                            {isTop2 && <span className="text-green-700 text-lg">✅</span>}
+                            {team.name || team.Name}
+                        </td>
+                        <td className="p-3 font-mono font-bold">{played}</td>
+                        
+                        {/* الداتا الجديدة بالألوان */}
+                        <td className="p-3 font-mono font-bold text-green-600">{wins}</td>
+                        <td className="p-3 font-mono font-bold text-amber-500">{draws}</td>
+                        <td className="p-3 font-mono font-bold text-red-600">{losses}</td>
+                        
+                        <td className="p-3 font-mono">{team.goalsFor || 0}</td>
+                        <td className="p-3 font-mono">{team.goalsAgainst || 0}</td>
+                        <td className="p-3 font-mono font-bold" dir="ltr">{gd > 0 ? `+${gd}` : gd}</td>
+                        <td className="p-3 font-black text-indigo-700 text-lg">{team.points || 0}</td>
+                    </tr>
+                );
+            })}
+        </tbody>
+    </table>
+</div>
                         </div>
                     );
                 })}
