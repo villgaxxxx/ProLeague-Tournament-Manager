@@ -198,9 +198,8 @@ export default function MatchResults() {
 </div>
 
 {/* ========================================================= */}
-{/* 2. 🔥 عرض الهدافين للجمهور تحت الفرق مباشرة 🔥 */}
-{/* ========================================================= */}
-{(match.team1Scorers || match.team2Scorers || match.Team1Scorers || match.Team2Scorers) && (
+{/* 🔥 عرض الهدافين للجمهور تحت الفرق مباشرة 🔥 */}
+{((match.team1Scorers && match.team1Scorers !== "") || (match.team2Scorers && match.team2Scorers !== "") || (match.Team1Scorers && match.Team1Scorers !== "") || (match.Team2Scorers && match.Team2Scorers !== "")) && (
     <div className="flex justify-between items-start w-full px-1 sm:px-4 mt-2 mb-4">
         
         {/* هدافي الفريق الأول */}
