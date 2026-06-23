@@ -199,6 +199,8 @@ export default function Matches({ setActiveTab }) {
         );
     };
 
+    
+
     return (
         <div className="max-w-5xl mx-auto mt-8 px-4 mb-16" dir="rtl">
             <h2 className="text-3xl font-black text-center mb-10 text-gray-800">جدول مباريات البطولة 🗓️</h2>
@@ -265,6 +267,26 @@ export default function Matches({ setActiveTab }) {
                                                             {match.team2?.name || match.Team2?.Name}
                                                         </span>
                                                     </div>
+
+                                                    {/* 🔥 عرض الهدافين للجمهور تحت الفرق مباشرة 🔥 */}
+{(match.team1Scorers || match.team2Scorers || match.Team1Scorers || match.Team2Scorers) && (
+    <div className="flex justify-between items-start w-full px-1 sm:px-4 mt-2 mb-4">
+        
+        {/* هدافي الفريق الأول */}
+        <div className="flex-1 flex justify-center text-center">
+            {renderScorers(match.team1Scorers || match.Team1Scorers)}
+        </div>
+        
+        {/* مساحة فاضية تحت النتيجة عشان التوازن */}
+        <div className="shrink-0 mx-2 w-[70px] xs:w-[85px] sm:w-[110px]"></div>
+        
+        {/* هدافي الفريق الثاني */}
+        <div className="flex-1 flex justify-center text-center">
+            {renderScorers(match.team2Scorers || match.Team2Scorers)}
+        </div>
+        
+    </div>
+)}
 
                                                     {(match.matchSummary || match.MatchSummary) && (
                                                         <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group hide-in-screenshot">
@@ -403,6 +425,8 @@ export default function Matches({ setActiveTab }) {
         );
     })}
 </div>
+
+
 
 {/* ==================== الفريق الثاني ==================== */}
 <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">

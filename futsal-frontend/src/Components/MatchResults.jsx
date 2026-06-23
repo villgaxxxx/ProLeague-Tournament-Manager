@@ -92,6 +92,30 @@ export default function MatchResults() {
         return <div className="text-center py-10 font-bold text-gray-600">جاري تحميل الأرشيف والتحليلات... 🕒</div>;
     }
 
+
+    // ⚽ دالة تجميع وعرض الهدافين ⚽
+    const renderScorers = (scorersString) => {
+        if (!scorersString) return null;
+        
+        const scorersArray = scorersString.split(',').filter(Boolean);
+        if (scorersArray.length === 0) return null;
+
+        const grouped = scorersArray.reduce((acc, name) => {
+            acc[name] = (acc[name] || 0) + 1;
+            return acc;
+        }, {});
+
+        return (
+            <div className="flex flex-col gap-1 items-center mt-1.5 text-[10px] sm:text-xs text-green-700 font-bold">
+                {Object.entries(grouped).map(([name, count], idx) => (
+                    <span key={idx} className="bg-green-50 px-1.5 py-0.5 rounded border border-green-200 shadow-sm flex items-center justify-center">
+                        {name} <span className="ml-0.5 text-[8px] sm:text-[10px]">{"⚽".repeat(count)}</span>
+                    </span>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <div className="max-w-5xl mx-auto mt-8 px-4 mb-16" dir="rtl">
             <h2 className="text-3xl font-black text-center mb-10 text-green-700 flex items-center justify-center gap-3">
@@ -153,24 +177,47 @@ export default function MatchResults() {
                                                 </div>
 
                                                 {/* النتيجة والفرق */}
-                                                <div className="flex justify-between items-center w-full px-1 sm:px-4">
-                                                    <span className="flex-1 text-center font-black text-gray-700 leading-tight px-1 break-words text-xs xs:text-sm sm:text-base md:text-xl lg:text-2xl">
-                                                        {match.team1?.name || match.Team1?.Name}
-                                                    </span>
-                                                    
-                                                    <div className="flex flex-col items-center shrink-0 mx-1 xs:mx-2">
-                                                        <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 bg-green-50 text-green-900 border border-green-200 font-black shadow-sm font-mono rounded-lg xs:rounded-xl px-2 xs:px-3 sm:px-5 py-1 xs:py-1.5 sm:py-2 text-lg xs:text-xl sm:text-2xl md:text-3xl">
-                                                            <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
-                                                        </div>
-                                                        {pen1 !== null && pen1 !== undefined && (
-                                                            <span className="font-bold text-orange-600 mt-1 text-[9px] xs:text-[10px] sm:text-xs">ترجيح: ({pen1}) - ({pen2})</span>
-                                                        )}
-                                                    </div>
-                                                    
-                                                    <span className="flex-1 text-center font-black text-gray-700 leading-tight px-1 break-words text-xs xs:text-sm sm:text-base md:text-xl lg:text-2xl">
-                                                        {match.team2?.name || match.Team2?.Name}
-                                                    </span>
-                                                </div>
+                                                {/* 1. السطر ده بيعرض الفرق والنتيجة (اللي إنت باعته) */}
+<div className="flex justify-between items-center w-full px-1 sm:px-4 mt-6">
+    <span className="flex-1 text-center font-black text-gray-700 leading-tight px-1 break-words text-xs xs:text-sm sm:text-base md:text-xl lg:text-2xl">
+        {match.team1?.name || match.Team1?.Name}
+    </span>
+    
+    <div className="flex flex-col items-center shrink-0 mx-1 xs:mx-2">
+        <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 bg-green-50 text-green-900 border border-green-200 font-black shadow-sm font-mono rounded-lg xs:rounded-xl px-2 xs:px-3 sm:px-5 py-1 xs:py-1.5 sm:py-2 text-lg xs:text-xl sm:text-2xl md:text-3xl">
+            <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
+        </div>
+        {pen1 !== null && pen1 !== undefined && (
+            <span className="font-bold text-orange-600 mt-1 text-[9px] xs:text-[10px] sm:text-xs">ترجيح: ({pen1}) - ({pen2})</span>
+        )}
+    </div>
+    
+    <span className="flex-1 text-center font-black text-gray-700 leading-tight px-1 break-words text-xs xs:text-sm sm:text-base md:text-xl lg:text-2xl">
+        {match.team2?.name || match.Team2?.Name}
+    </span>
+</div>
+
+{/* ========================================================= */}
+{/* 2. 🔥 عرض الهدافين للجمهور تحت الفرق مباشرة 🔥 */}
+{/* ========================================================= */}
+{(match.team1Scorers || match.team2Scorers || match.Team1Scorers || match.Team2Scorers) && (
+    <div className="flex justify-between items-start w-full px-1 sm:px-4 mt-2 mb-4">
+        
+        {/* هدافي الفريق الأول */}
+        <div className="flex-1 flex justify-center text-center">
+            {renderScorers(match.team1Scorers || match.Team1Scorers)}
+        </div>
+        
+        {/* مساحة فاضية تحت النتيجة عشان التوازن */}
+        <div className="shrink-0 mx-2 w-[70px] xs:w-[85px] sm:w-[110px]"></div>
+        
+        {/* هدافي الفريق الثاني */}
+        <div className="flex-1 flex justify-center text-center">
+            {renderScorers(match.team2Scorers || match.Team2Scorers)}
+        </div>
+        
+    </div>
+)}
 
                                                 {/* 🤖 التعليق الذكي (سيظهر في الصورة لأننا لم نضع كلاس الإخفاء) */}
                                                 {(match.matchSummary || match.MatchSummary) && (
