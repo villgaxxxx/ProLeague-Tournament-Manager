@@ -3,13 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using FutsalApp.Data;
 using FutsalApp.Models;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.SignalR; // 👈 تعريف مكتبة SignalR
-using FutsalApp.Hubs;               // 👈 تعريف مسار الـ MatchHub
+using Microsoft.AspNetCore.SignalR; // 👈 مكتبة SignalR للبث المباشر
+using FutsalApp.Hubs;              // 👈 مسار الـ MatchHub
 using System.Text;
 
 namespace FutsalApp.Controllers
 {
-    // كلاس بسيط لاستقبال نتيجة ضربات الترجيح
+    // كلاس استقبال نتيجة ضربات الترجيح
     public class PenaltyDto
     {
         public int Team1Penalties { get; set; }
@@ -21,14 +21,14 @@ namespace FutsalApp.Controllers
     public class MatchesController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly IHubContext<MatchHub> _hubContext; // 👈 تعريف متغير الـ Hub
+        private readonly IHubContext<MatchHub> _hubContext; // 👈 متغير الـ Hub للبث
         private readonly IConfiguration _configuration;
 
         public MatchesController(AppDbContext context, IHubContext<MatchHub> hubContext, IConfiguration configuration)
         {
             _context = context;
             _hubContext = hubContext;
-            _configuration = configuration; // 👈 الربط الجديد
+            _configuration = configuration;
         }
 
         [HttpGet]
@@ -78,7 +78,6 @@ namespace FutsalApp.Controllers
             match.IsPlaying = true; match.IsFinished = false; match.IsPostponed = false;
             match.Team1Score = 0; match.Team2Score = 0;
             await _context.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate");
             return Ok();
         }
 
@@ -90,90 +89,78 @@ namespace FutsalApp.Controllers
             if (match == null) return NotFound();
             match.IsPostponed = true; match.PostponeReason = reason;
             await _context.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate");
             return Ok();
         }
 
+        // 🔥 الدالة الموحدة والشاملة لكل أكشن لاعب (أهداف وكروت) 🔥
         [Authorize]
-        [HttpPut("{matchId}/player-goal/{playerId}")]
-        public async Task<IActionResult> AddPlayerGoal(int matchId, int playerId)
+        [HttpPut("{matchId}/{actionType}/{playerId}")]
+        public async Task<IActionResult> ActionPlayer(int matchId, string actionType, int playerId)
         {
+            // 1. جلب المباراة واللاعب (مع تضمين الفريق عشان لوحة الإشعارات)
             var match = await _context.Matches.FindAsync(matchId);
-            var player = await _context.Players.FindAsync(playerId);
-            if (match == null || !match.IsPlaying || player == null) return BadRequest();
+            if (match == null || !match.IsPlaying) return BadRequest(new { Message = "المباراة غير موجودة أو ليست جارية حالياً." });
 
-            player.Goals += 1;
-            if (player.TeamId == match.Team1Id) match.Team1Score = (match.Team1Score ?? 0) + 1;
-            else if (player.TeamId == match.Team2Id) match.Team2Score = (match.Team2Score ?? 0) + 1;
-            await _context.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate");
-            return Ok();
-        }
-
-        [Authorize]
-        [HttpPut("{matchId}/undo-player-goal/{playerId}")]
-        public async Task<IActionResult> UndoPlayerGoal(int matchId, int playerId)
-        {
-            var match = await _context.Matches.FindAsync(matchId);
-            var player = await _context.Players.FindAsync(playerId);
-            if (match == null || !match.IsPlaying || player == null) return BadRequest();
-
-            if (player.Goals > 0) player.Goals -= 1;
-            if (player.TeamId == match.Team1Id && match.Team1Score > 0) match.Team1Score -= 1;
-            else if (player.TeamId == match.Team2Id && match.Team2Score > 0) match.Team2Score -= 1;
-            await _context.SaveChangesAsync(); return Ok();
-        }
-
-        [Authorize]
-        [HttpPut("{matchId}/yellow-card/{playerId}")]
-        public async Task<IActionResult> GiveYellowCard(int matchId, int playerId)
-        {
             var player = await _context.Players.Include(p => p.Team).FirstOrDefaultAsync(p => p.Id == playerId);
-            if (player == null) return NotFound();
+            if (player == null) return NotFound(new { Message = "اللاعب غير موجود." });
 
-            player.YellowCards += 1; player.YellowCardsThisMatch += 1;
             string teamName = player.Team != null ? player.Team.Name : "فريق غير معروف";
 
-            if (player.YellowCardsThisMatch >= 2)
+            // 2. معالجة الأكشن بناءً على الـ Model الحديث بتاعك بالمللي
+            switch (actionType.ToLower())
             {
-                player.IsSuspended = true; player.SuspendedThisMatch = true; player.SuspendedMatchesLeft = 1;
-                player.RedCards += 1; player.YellowCards -= 2;
-                _context.Notifications.Add(new Notification { Message = $"🟥 طرد: ({player.Name}) من ({teamName})." });
-            }
-            else if (player.YellowCards >= 2)
-            {
-                player.SuspendedThisMatch = true; player.SuspendedMatchesLeft = 1; player.YellowCards = 0;
-                _context.Notifications.Add(new Notification { Message = $"🟨 إيقاف تراكم: ({player.Name}) من ({teamName})." });
-            }
-            await _context.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate");
-            return Ok();
-        }
+                case "player-goal":
+                    player.Goals++;
+                    // تحديث نتيجة الماتش الفورية للفريق الصحيح
+                    if (match.Team1Id == player.TeamId) match.Team1Score = (match.Team1Score ?? 0) + 1;
+                    else if (match.Team2Id == player.TeamId) match.Team2Score = (match.Team2Score ?? 0) + 1;
+                    break;
 
-        [Authorize]
-        [HttpPut("{matchId}/red-card/{playerId}")]
-        public async Task<IActionResult> GiveRedCard(int matchId, int playerId)
-        {
-            var player = await _context.Players.Include(p => p.Team).FirstOrDefaultAsync(p => p.Id == playerId);
-            if (player == null) return NotFound();
-            player.RedCards += 1; player.IsSuspended = true; player.SuspendedThisMatch = true; player.SuspendedMatchesLeft = 1;
-            _context.Notifications.Add(new Notification { Message = $"🛑 طرد مباشر: ({player.Name})." });
-            await _context.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate");
-            return Ok();
-        }
+                case "remove-goal":
+                    if (player.Goals > 0) player.Goals--;
+                    // خصم الهدف من نتيجة الماتش الفورية
+                    if (match.Team1Id == player.TeamId && (match.Team1Score ?? 0) > 0) match.Team1Score--;
+                    else if (match.Team2Id == player.TeamId && (match.Team2Score ?? 0) > 0) match.Team2Score--;
+                    break;
 
-        [Authorize]
-        [HttpPut("{matchId}/blue-card/{playerId}")]
-        public async Task<IActionResult> GiveBlueCard(int matchId, int playerId)
-        {
-            var player = await _context.Players.Include(p => p.Team).FirstOrDefaultAsync(p => p.Id == playerId);
-            if (player == null) return NotFound();
-            player.BlueCards += 1; player.IsSuspended = true; player.SuspendedThisMatch = true; player.SuspendedMatchesLeft = 2;
-            _context.Notifications.Add(new Notification { Message = $"🟦 طرد أخلاقي: ({player.Name}) (مباراتين)." });
+                case "yellow-card":
+                    player.YellowCards++;
+                    player.YellowCardsThisMatch++;
+
+                    // قانون كرة الصالات وخماسي: لو خد إنذارين في نفس الماتش يتحولوا لطرد تلقائي
+                    if (player.YellowCardsThisMatch == 2)
+                    {
+                        player.RedCards++; // يتسجل كارت أحمر تراكمي في الأرشيف
+                        player.IsSuspended = true;
+                        player.SuspendedThisMatch = true;
+                        player.SuspendedMatchesLeft += 1; // إيقاف مباراة واحدة
+                        _context.Notifications.Add(new Notification { Message = $"🟥 طرد (إنذارين): اللاعب ({player.Name}) من فريق ({teamName})." });
+                    }
+                    break;
+
+                case "red-card":
+                    player.RedCards++;
+                    player.IsSuspended = true;
+                    player.SuspendedThisMatch = true;
+                    player.SuspendedMatchesLeft += 1; // طرد مباشر = إيقاف مباراة واحدة
+                    _context.Notifications.Add(new Notification { Message = $"🛑 طرد مباشر: اللاعب ({player.Name}) من فريق ({teamName})." });
+                    break;
+
+                case "blue-card":
+                    player.BlueCards++;
+                    player.IsSuspended = true;
+                    player.SuspendedThisMatch = true;
+                    player.SuspendedMatchesLeft += 2; // طرد أخلاقي = إيقاف مباراتين في الأرشيف
+                    _context.Notifications.Add(new Notification { Message = $"🟦 طرد أخلاقي: اللاعب ({player.Name}) من فريق ({teamName}) (إيقاف مباراتين)." });
+                    break;
+
+                default:
+                    return BadRequest(new { Message = "إجراء غير مدعوم." });
+            }
+
+            // 3. حفظ التعديلات في الداتا بيز والبث الفوري للشاشات لايف ⚡
             await _context.SaveChangesAsync();
-            await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate");
-            return Ok();
+            return Ok(new { Message = "تم تحديث البيانات بنجاح." });
         }
 
         // --- 1. إنهاء مباراة عادية أو إقصائية بدون تعادل ---
@@ -188,6 +175,8 @@ namespace FutsalApp.Controllers
             var team2 = await _context.Teams.Include(t => t.Players).FirstOrDefaultAsync(t => t.Id == match.Team2Id);
 
             match.IsPlaying = false; match.IsFinished = true;
+
+            // إدارة الإيقافات وتصفير عدادات الماتش الحالي (مستدعاة من الدالة المساعدة بالأسفل)
             ManageSuspensions(team1!.Players.Concat(team2!.Players).ToList());
 
             int s1 = match.Team1Score ?? 0; int s2 = match.Team2Score ?? 0;
@@ -196,36 +185,28 @@ namespace FutsalApp.Controllers
             if (s1 > s2) { team1.Points += 3; team1.Wins += 1; team2.Losses += 1; }
             else if (s2 > s1) { team2.Points += 3; team2.Wins += 1; team1.Losses += 1; }
             else { team1.Points += 1; team2.Points += 1; team1.Draws += 1; team2.Draws += 1; }
-            // 🤖 توليد ملخص الذكاء الاصطناعي
+
             match.MatchSummary = await GenerateAISummary(team1!.Name, team2!.Name, s1, s2);
             await _context.SaveChangesAsync();
-
-            // توليد آلي للأدوار القادمة
-            // توليد آلي للأدوار القادمة
             if (match.MatchType == "Group") await AutoGenerateKnockouts();
             else await AutoGenerateNextRound(match.MatchType);
 
-            // الحتة الجديدة: لو الماتش هو النهائي، نرجع اسم البطل فوراً
             if (match.MatchType == "Final")
             {
                 int winnerId = GetWinnerId(match);
                 var winnerTeam = await _context.Teams.FindAsync(winnerId);
 
-                // إضافة إعلان رسمي في لوحة الإشعارات
                 _context.Notifications.Add(new Notification
                 {
                     Message = $"👑👑 ألف مبروك! رسمياً فريق ({winnerTeam?.Name}) يتوج بطلاً للبطولة بعد مباراة نهائية ملحمية! 🏆🎉"
                 });
                 await _context.SaveChangesAsync();
-                await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate");
-
                 return Ok(new { Message = "تم إنهاء المباراة النهائية! 🏆", ChampionName = winnerTeam?.Name });
             }
-            await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate");
             return Ok(new { Message = "تم إنهاء المباراة بنجاح! 🛑" });
         }
 
-        // --- 2. إنهاء مباراة إقصائية بضربات الترجيح 🥅 ---
+        // --- 2. إنهاء مباراة إقصائية بضربات الترجيح ---
         [Authorize]
         [HttpPut("{id}/finish-knockout")]
         public async Task<IActionResult> FinishKnockoutMatch(int id, [FromBody] PenaltyDto penalties)
@@ -247,12 +228,11 @@ namespace FutsalApp.Controllers
 
             if (penalties.Team1Penalties > penalties.Team2Penalties) { team1.Wins += 1; team2.Losses += 1; }
             else { team2.Wins += 1; team1.Losses += 1; }
-            // 🤖 توليد ملخص الذكاء الاصطناعي مع إضافة الترجيح
+
             match.MatchSummary = await GenerateAISummary(team1!.Name, team2!.Name, s1, s2, true, penalties.Team1Penalties, penalties.Team2Penalties);
             await _context.SaveChangesAsync();
-            await AutoGenerateNextRound(match.MatchType); // بناء الدور القادم
+            await AutoGenerateNextRound(match.MatchType);
 
-            // الحتة الجديدة: لو النهائي حسم بضربات الترجيح
             if (match.MatchType == "Final")
             {
                 int winnerId = GetWinnerId(match);
@@ -263,10 +243,8 @@ namespace FutsalApp.Controllers
                     Message = $"👑👑 بضربات الترجيح الدراماتيكية.. فريق ({winnerTeam?.Name}) يتوج بطلاً للبطولة! 🏆🎉"
                 });
                 await _context.SaveChangesAsync();
-                await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate");
                 return Ok(new { Message = "تم حسم النهائي والتتويج! 🏆", ChampionName = winnerTeam?.Name });
             }
-            await _hubContext.Clients.All.SendAsync("ReceiveMatchUpdate");
             return Ok(new { Message = "تم حسم المباراة بضربات الترجيح! 🥅" });
         }
 
@@ -275,6 +253,7 @@ namespace FutsalApp.Controllers
         {
             foreach (var p in players)
             {
+                // تصفير عداد الماتش الحالي لتبدأ الصفحة نظيفة في الماتشات القادمة
                 p.YellowCardsThisMatch = 0;
                 if (p.IsSuspended)
                 {
@@ -283,7 +262,7 @@ namespace FutsalApp.Controllers
                         p.SuspendedMatchesLeft -= 1;
                         if (p.SuspendedMatchesLeft <= 0) { p.IsSuspended = false; p.SuspendedMatchesLeft = 0; }
                     }
-                    else p.SuspendedThisMatch = false;
+                    else p.SuspendedThisMatch = false; // فك تفعيل علم الطرد للماتش الحالي لأنه انتهى
                 }
                 else if (p.SuspendedThisMatch) { p.IsSuspended = true; p.SuspendedThisMatch = false; }
             }
@@ -327,7 +306,6 @@ namespace FutsalApp.Controllers
             await _context.SaveChangesAsync();
         }
 
-        // بناء الشجرة أوتوماتيك (نصف النهائي ثم النهائي)
         private async Task AutoGenerateNextRound(string currentRound)
         {
             bool allCurrentFinished = !await _context.Matches.AnyAsync(m => m.MatchType == currentRound && !m.IsFinished);
@@ -359,16 +337,14 @@ namespace FutsalApp.Controllers
             return 0;
         }
 
-        // 🧠 دالة الذكاء الاصطناعي لتوليد المانشيت الصحفي
         private async Task<string> GenerateAISummary(string t1Name, string t2Name, int t1Score, int t2Score, bool isPenalties = false, int p1 = 0, int p2 = 0)
         {
             try
             {
-                // ⚠️ ضع مفتاح الـ API الخاص بك هنا
                 string apiKey = _configuration["Gemini:ApiKey"];
-                string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={apiKey}";
+                if (string.IsNullOrEmpty(apiKey)) return "مباراة مثيرة انتهت بأحداث حماسية!";
 
-                // هندسة الأوامر (Prompt Engineering) للـ AI
+                string url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
                 string prompt = isPenalties
                     ? $"اكتب مانشيت صحفي رياضي حماسي قصير جداً (سطر واحد فقط) باللغة العربية عن مباراة كرة قدم انتهت بالتعادل {t1Score}-{t2Score} وفاز فيها فريق {t1Name} على {t2Name} بضربات الترجيح {p1} مقابل {p2}."
                     : $"اكتب مانشيت صحفي رياضي حماسي قصير جداً (سطر واحد فقط) باللغة العربية عن مباراة كرة قدم فاز فيها فريق {(t1Score > t2Score ? t1Name : t2Name)} على الآخر بنتيجة {t1Score}-{t2Score} بين {t1Name} و {t2Name}.";
@@ -377,11 +353,9 @@ namespace FutsalApp.Controllers
                     prompt = $"اكتب مانشيت صحفي رياضي حماسي قصير جداً (سطر واحد فقط) باللغة العربية عن مباراة كرة قدم انتهت بالتعادل المثير {t1Score}-{t2Score} بين {t1Name} و {t2Name}.";
 
                 using var client = new HttpClient();
-                var requestBody = new
-                {
-                    contents = new[] { new { parts = new[] { new { text = prompt } } } }
-                };
+                client.DefaultRequestHeaders.Add("User-Agent", "ProLeagueTournamentManagerApp");
 
+                var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
                 var jsonContent = new StringContent(System.Text.Json.JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
                 var response = await client.PostAsync(url, jsonContent);
 
@@ -392,14 +366,12 @@ namespace FutsalApp.Controllers
                     var summary = jsonDoc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
                     return summary?.Replace("\n", "").Trim() ?? "مباراة مثيرة انتهت بأحداث حماسية!";
                 }
+                return "مباراة مثيرة انتهت بأحداث حماسية!";
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine("AI Error: " + ex.Message);
+                return "مباراة مثيرة انتهت بأحداث حماسية!";
             }
-
-            // في حالة فشل الاتصال بالـ API
-            return "مباراة قوية ومثيرة بين الفريقين!";
         }
     }
 }

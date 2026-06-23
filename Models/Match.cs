@@ -26,6 +26,8 @@ namespace FutsalApp.Models
         // ضفنا هنا خصائص حالة المباراة بس بدون تكرار التاريخ
         public bool IsPlaying { get; set; } = false;
         public bool IsFinished { get; set; } = false;
+        public string? GroupName { get; set; } // اسم المجموعة (A, B, C)
+        public int RoundNumber { get; set; }   // رقم الجولة
 
         [ForeignKey("Team1Id")]
         public virtual Team? Team1 { get; set; }

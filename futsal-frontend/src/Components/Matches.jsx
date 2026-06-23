@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import * as signalR from "@microsoft/signalr";
 import { toPng } from 'html-to-image';
 
 export default function Matches({ setActiveTab }) {
@@ -21,24 +20,32 @@ export default function Matches({ setActiveTab }) {
     useEffect(() => {
         const backendUrl = "/matchHub"; 
         
-        const connection = new signalR.HubConnectionBuilder()
-            .withUrl(backendUrl)
-            .withAutomaticReconnect()
-            .build();
-
-        connection.start()
-            .then(() => console.log("متصل بنجاح بالسيرفر لايف! ⚡"))
-            .catch(err => console.error("SignalR Connection Error: ", err));
-
-        connection.on("ReceiveMatchUpdate", () => {
-            console.log("إشارة تحديث وصلت من السيرفر! 📡");
-            fetchMatches(); 
-        });
-
-        return () => {
-            connection.stop();
+        useEffect(() => {
+        // 1. دالة جلب الماتشات من السيرفر
+        const fetchLiveMatches = async () => {
+            try {
+                const response = await fetch('/api/Matches'); // تأكد إن ده رابط الـ API بتاعك
+                if (response.ok) {
+                    const data = await response.json();
+                    const matchesData = Array.isArray(data) ? data : data?.$values || [];
+                    setMatches(matchesData);
+                }
+            } catch (error) {
+                console.error("خطأ في جلب المباريات:", error);
+            }
         };
-    }, []); 
+
+        // 2. تشغيل الدالة فوراً أول ما الصفحة تفتح
+        fetchLiveMatches();
+
+        // 3. 🔥 السحر هنا: تحديث صامت في الخلفية كل 2 ثواني (بديل الـ SignalR)
+        const pollingInterval = setInterval(() => {
+            fetchLiveMatches();
+        }, 2000);
+
+        // 4. تنظيف العداد لما اليوزر يخرج من الصفحة عشان نوفر رامات المتصفح
+        return () => clearInterval(pollingInterval);
+    }, []);
 
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');

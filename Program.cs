@@ -43,12 +43,12 @@ builder.Services.AddSwaggerGen(c =>
 // 2. إعداد الـ CORS (عشان يقبل الطلبات من React من أي بورت)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", builder =>
-    {
-        builder.AllowAnyOrigin()
-               .AllowAnyMethod()
-               .AllowAnyHeader();
-    });
+    options.AddPolicy("AllowVercel",
+        policy => policy
+            .WithOrigins("https://pro-league-tournament-manager.vercel.app") // رابط الفرونت إند بتاعك
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()); // السطر ده مهم جدااااً للـ SignalR
 });
 
 // 3. تسجيل الـ AppDbContext في قائمة الخدمات (ده السطر اللي كان ناقص وعمل المشكلة!)
@@ -99,7 +99,6 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowAll"); // لازم تكون هنا قبل الـ Authorization
 app.UseAuthentication(); // لازم يكون ده قبل الـ Authorization
 app.UseAuthorization();
+app.UseCors("AllowVercel");
 app.MapControllers();
-app.MapHub<FutsalApp.Hubs.MatchHub>("/matchHub");
-
 app.Run();

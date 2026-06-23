@@ -37,6 +37,25 @@ namespace FutsalApp.Controllers
             return CreatedAtAction(nameof(GetTeams), new { id = newTeam.Id }, newTeam);
         }
 
+        [Authorize]
+        [HttpGet("print-summary")]
+        public async Task<IActionResult> GetTeamsPrintSummary()
+        {
+            var summary = await _context.Teams
+                .Include(t => t.Players)
+                .Select(t => new
+                {
+                    TeamName = t.Name,
+                    CaptainName = t.CaptainName, // تأكد من اسم العمود عندك (مثلاً لو مخزن الكابتن في كلاس اللاعبين أو جدول الفرق)
+                    CaptainPhone = t.Phone, // تأكد من اسم عمود الهاتف
+                    GroupName = t.GroupName,
+                    Players = t.Players.Select(p => p.Name).ToList()
+                })
+                .ToListAsync();
+
+            return Ok(summary);
+        }
+
         // مسح جميع بيانات البطولة للبدء من جديد (مقفولة للإدمن بس)
         [Authorize]
         [HttpDelete("reset")]
@@ -51,10 +70,19 @@ namespace FutsalApp.Controllers
             // 3. مسح جميع الفرق
             _context.Teams.RemoveRange(_context.Teams);
 
+            // 4. مسح الإعلانات والإيقافات
+            _context.Notifications.RemoveRange(_context.Notifications);
+            // 5. 🔥 فتح زرار القرعة من جديد (عشان لما تضيف فرق جديدة يشتغل)
+            var settings = await _context.TournamentSettings.FirstOrDefaultAsync();
+            if (settings != null)
+            {
+                settings.IsGroupStageDrawn = false;
+            }
+
             // حفظ التغييرات في قاعدة البيانات
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "تم تصفير البطولة ومسح جميع البيانات بنجاح! 🗑️" });
+            return Ok(new { Message = "تم تصفير البطولة ومسح جميع البيانات. 🗑️🔄" });
         }
     }
 }

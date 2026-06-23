@@ -31,6 +31,7 @@ namespace FutsalApp.Controllers
             return Ok(settings);
         }
 
+
         // 2. تحديث إعدادات البطولة (للإدمن بس)
         [Authorize]
         [HttpPut("settings")]
@@ -62,15 +63,21 @@ namespace FutsalApp.Controllers
             if (settings == null || settings.IsGroupStageDrawn)
                 return BadRequest(new { Message = "القرعة اتسحبت بالفعل أو الإعدادات غير موجودة." });
 
-            var teams = await _context.Teams.ToListAsync();
+            var teams = await _context.Teams.Include(t => t.Players).ToListAsync();
+
             if (teams.Count < settings.GroupSize)
                 return BadRequest(new { Message = $"عدد الفرق المسجلة ({teams.Count}) أقل من حجم المجموعة المطلوب ({settings.GroupSize})!" });
 
-            // خلط الفرق بشكل عشوائي (Shuffle)
+            var invalidTeams = teams.Where(t => t.Players == null || t.Players.Count < 5).Select(t => t.Name).ToList();
+            if (invalidTeams.Any())
+            {
+                string teamsList = string.Join("، ", invalidTeams);
+                return BadRequest(new { Message = $"لا يمكن إجراء القرعة! الفرق التالية تمتلك أقل من 5 لاعبين: {teamsList}" });
+            }
+
             var random = new Random();
             var shuffledTeams = teams.OrderBy(t => random.Next()).ToList();
 
-            // توزيع الفرق على مجموعات (A, B, C...)
             char currentGroupName = 'A';
             int count = 0;
 
@@ -78,19 +85,31 @@ namespace FutsalApp.Controllers
             {
                 team.GroupName = currentGroupName.ToString();
                 count++;
-
-                // لما المجموعة تتملي، ننقل للحرف اللي بعده
                 if (count % settings.GroupSize == 0 && count < shuffledTeams.Count)
                 {
                     currentGroupName++;
                 }
             }
 
+            // 🔥 الجديد هنا: توليد المباريات بعد ما قسمنا الفرق لمجموعات
+            var allMatches = new List<Match>();
+            var groupedTeams = shuffledTeams.GroupBy(t => t.GroupName).ToList();
+
+            foreach (var group in groupedTeams)
+            {
+                // استدعاء دالة الخوارزمية لكل مجموعة
+                var groupMatches = GenerateGroupFixtures(group.ToList(), group.Key, settings.IsHomeAway);
+                allMatches.AddRange(groupMatches);
+            }
+
+            // حفظ المباريات في الداتا بيز
+            _context.Matches.AddRange(allMatches);
+
             // قفل زرار القرعة
             settings.IsGroupStageDrawn = true;
             await _context.SaveChangesAsync();
 
-            return Ok(new { Message = "تم سحب القرعة وتوزيع الفرق بنجاح! 🎲" });
+            return Ok(new { Message = "تم سحب القرعة وتوليد جدول المباريات بالجولات بنجاح! 🎲🗓️" });
         }
 
         // 4. عرض المجموعات بعد القرعة
@@ -262,7 +281,6 @@ namespace FutsalApp.Controllers
         }
 
         // 10. توليد مباريات الأدوار الإقصائية (خروج المغلوب)
-        // 10. توليد مباريات الأدوار الإقصائية (خروج المغلوب)
         [Authorize]
         [HttpPost("generate-knockouts")]
         public async Task<IActionResult> GenerateKnockouts()
@@ -342,6 +360,73 @@ namespace FutsalApp.Controllers
 
             await _context.SaveChangesAsync();
             return Ok(new { Message = $"تم سحب وتوليد مباريات ({roundName}) بنجاح! 🔥" });
+        }
+
+        private List<Match> GenerateGroupFixtures(List<Team> groupTeams, string groupName, bool isHomeAway)
+        {
+            var matches = new List<Match>();
+            var teamsList = new List<Team>(groupTeams);
+
+            // لو عدد الفرق فردي، بنضيف فريق "وهمي" للراحة
+            bool isOdd = teamsList.Count % 2 != 0;
+            if (isOdd) teamsList.Add(new Team { Id = -1, Name = "Bye" });
+
+            int numTeams = teamsList.Count;
+            int numRounds = numTeams - 1;
+            int matchesPerRound = numTeams / 2;
+
+            for (int round = 0; round < numRounds; round++)
+            {
+                for (int match = 0; match < matchesPerRound; match++)
+                {
+                    int homeIdx = (round + match) % (numTeams - 1);
+                    int awayIdx = (numTeams - 1 - match + round) % (numTeams - 1);
+
+                    if (match == 0) awayIdx = numTeams - 1;
+
+                    var homeTeam = teamsList[homeIdx];
+                    var awayTeam = teamsList[awayIdx];
+
+                    if (homeTeam.Id != -1 && awayTeam.Id != -1)
+                    {
+                        matches.Add(new Match
+                        {
+                            Team1Id = homeTeam.Id,        // التعديل هنا
+                            Team2Id = awayTeam.Id,        // التعديل هنا
+                            Team1Score = 0,               // التعديل هنا
+                            Team2Score = 0,               // التعديل هنا
+                            IsFinished = false,           // التعديل هنا بدل IsPlayed
+                            IsPlaying = false,
+                            MatchType = "Group",          // عشان الفرونت إند يعرف إنها في المجموعات
+                            GroupName = groupName,
+                            RoundNumber = round + 1
+                        });
+                    }
+                }
+            }
+
+            if (isHomeAway)
+            {
+                var awayMatches = new List<Match>();
+                foreach (var m in matches)
+                {
+                    awayMatches.Add(new Match
+                    {
+                        Team1Id = m.Team2Id,
+                        Team2Id = m.Team1Id,
+                        Team1Score = 0,
+                        Team2Score = 0,
+                        IsFinished = false,
+                        IsPlaying = false,
+                        MatchType = "Group",
+                        GroupName = groupName,
+                        RoundNumber = m.RoundNumber + numRounds
+                    });
+                }
+                matches.AddRange(awayMatches);
+            }
+
+            return matches;
         }
     }
 }
