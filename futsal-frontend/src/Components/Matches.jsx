@@ -13,39 +13,19 @@ export default function Matches({ setActiveTab }) {
             .catch(err => console.error("Error fetching matches:", err));
     }, []);
 
+    // 🔥 التعديل هنا: نظفنا الـ useEffect المتكررة ودمجنا البولينج بشكل سليم
     useEffect(() => {
+        // 1. تشغيل الدالة فوراً أول ما الصفحة تفتح
         fetchMatches();
-    }, [fetchMatches]);
 
-    useEffect(() => {
-        const backendUrl = "/matchHub"; 
-        
-        useEffect(() => {
-        // 1. دالة جلب الماتشات من السيرفر
-        const fetchLiveMatches = async () => {
-            try {
-                const response = await fetch('/api/Matches'); // تأكد إن ده رابط الـ API بتاعك
-                if (response.ok) {
-                    const data = await response.json();
-                    const matchesData = Array.isArray(data) ? data : data?.$values || [];
-                    setMatches(matchesData);
-                }
-            } catch (error) {
-                console.error("خطأ في جلب المباريات:", error);
-            }
-        };
-
-        // 2. تشغيل الدالة فوراً أول ما الصفحة تفتح
-        fetchLiveMatches();
-
-        // 3. 🔥 السحر هنا: تحديث صامت في الخلفية كل 2 ثواني (بديل الـ SignalR)
+        // 2. تحديث صامت في الخلفية كل 3 ثواني (بديل الـ SignalR)
         const pollingInterval = setInterval(() => {
-            fetchLiveMatches();
-        }, 2000);
+            fetchMatches();
+        }, 3000);
 
-        // 4. تنظيف العداد لما اليوزر يخرج من الصفحة عشان نوفر رامات المتصفح
+        // 3. تنظيف العداد لما اليوزر يخرج من الصفحة
         return () => clearInterval(pollingInterval);
-    }, []);
+    }, [fetchMatches]);
 
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');
@@ -136,20 +116,15 @@ export default function Matches({ setActiveTab }) {
         fetchMatches();
     };
 
-    // 🔥 تجميع المباريات حسب رقم الجولة
-    // 🔥 السطر الجديد: فلترة لإخفاء أي ماتش انتهى (عشان يروح للأرشيف)
     const activeMatches = matches.filter(m => !(m.isFinished === true || m.IsFinished === true));
 
-    // 👇 هنا خلينا الـ reduce يشتغل على activeMatches بدل matches
     const matchesByRound = activeMatches.reduce((acc, match) => {
         const type = match.matchType || match.MatchType;
         let roundKey = "";
 
-        // لو أدوار إقصائية (خروج مغلوب) نحطها في قسم لوحدها
         if (type !== "Group" && type !== undefined) {
             roundKey = "الأدوار الإقصائية 🏆";
         } else {
-            // لو مجموعات، نقسمها بالجولات (استخدمنا ?? عشان لو الجولة 0 تتقري صح)
             const round = match.roundNumber ?? match.RoundNumber ?? 1;
             roundKey = `الجولة ${round}`;
         }
@@ -159,7 +134,6 @@ export default function Matches({ setActiveTab }) {
         return acc;
     }, {});
 
-    // 📸 دالة التقاط جدول الجولة كصورة (بالمكتبة الحديثة)
     const handleDownloadRoundImage = async (roundKey) => {
         const elementId = `capture-${roundKey.replace(/\s+/g, '-')}`;
         const element = document.getElementById(elementId);
@@ -177,9 +151,8 @@ export default function Matches({ setActiveTab }) {
 
             const dataUrl = await toPng(element, {
                 quality: 1.0,
-                pixelRatio: 2, // جودة عالية
+                pixelRatio: 2,
                 filter: (node) => {
-                    // 🔥 السر هنا: تجاهل أي زرار أو عنصر واخد كلاس hide-in-screenshot
                     if (node?.classList?.contains('hide-in-screenshot')) {
                         return false;
                     }
@@ -214,7 +187,6 @@ export default function Matches({ setActiveTab }) {
                     return (
                         <div key={roundKey} className="mb-14 relative">
                             
-                            {/* 🔥 التعديل: زرار التحميل يظهر للأدمن فقط 🔥 */}
                             {isAdmin && (
                                 <div className="flex justify-end mb-4 px-2">
                                     <button 
@@ -238,85 +210,52 @@ export default function Matches({ setActiveTab }) {
                                     {matchesByRound[roundKey].map(match => {
                                         const isFinished = match.isFinished === true || match.IsFinished === true;
                                         
-                                        // ----------------------------------------------------
-                                // 1. كارت المباراة المنتهية (نتائج وتحليل الذكاء الاصطناعي)
-                                // ----------------------------------------------------
-                                if (isFinished) {
-                                    const pen1 = match.team1PenaltiesScore ?? match.Team1PenaltiesScore;
-                                    const pen2 = match.team2PenaltiesScore ?? match.Team2PenaltiesScore;
+                                        if (isFinished) {
+                                            const pen1 = match.team1PenaltiesScore ?? match.Team1PenaltiesScore;
+                                            const pen2 = match.team2PenaltiesScore ?? match.Team2PenaltiesScore;
 
-                                    return (
-                                        <div key={match.id || match.Id} className="bg-white p-6 rounded-xl shadow-md border-r-8 border-gray-400 flex flex-col transition-all hover:shadow-lg relative overflow-hidden">
-                                            {/* اسم المجموعة فوق الماتش */}
-                                            {(match.groupName || match.GroupName) && (
-                                                <div className="absolute top-0 left-0 bg-gray-200 text-gray-700 px-3 py-1 text-xs font-bold rounded-br-lg">
-                                                    المجموعة {match.groupName || match.GroupName}
-                                                </div>
-                                            )}
+                                            return (
+                                                <div key={match.id || match.Id} className="bg-white p-6 rounded-xl shadow-md border-r-8 border-gray-400 flex flex-col transition-all hover:shadow-lg relative overflow-hidden">
+                                                    {(match.groupName || match.GroupName) && (
+                                                        <div className="absolute top-0 left-0 bg-gray-200 text-gray-700 px-3 py-1 text-xs font-bold rounded-br-lg">
+                                                            المجموعة {match.groupName || match.GroupName}
+                                                        </div>
+                                                    )}
 
-                                            {/* 🔥 تعديل: الصف المرن بالكامل للأسماء والنتيجة 🔥 */}
-                                            {/* px-1 sm:px-4 عشان ندي مساحة أكبر على الموبايل */}
-                                            <div className="flex justify-between items-center w-full px-1 sm:px-4 mt-6">
-                                                
-                                                {/* الفريق الأول - مرن ويصغر خطه على الموبايل */}
-                                                <span className="flex-1 text-center font-black text-gray-700
-                                                    leading-tight px-1
-                                                    break-words /* 🔥 التعديل السحري: نمنع القص ونسمح بنزول الكلمة سطر */
-                                                    text-xs /* خط صغير في الموبايل */
-                                                    xs:text-sm /* موبايلات أكبر شوية */
-                                                    sm:text-base /* تابلت */
-                                                    md:text-xl /* كمبيوتر عادي */
-                                                    lg:text-2xl /* شاشات كبيرة */">
-                                                    {match.team1?.name || match.Team1?.Name}
-                                                </span>
-                                                
-                                                {/* النتيجة في النص -shrink-0 عشان مربع النتيجة متفعصش */}
-                                                <div className="flex flex-col items-center shrink-0 mx-1 xs:mx-2">
-                                                    {/* تعديل: صغر حجم المربع والخط على الموبايل */}
-                                                    <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 bg-gray-100 text-gray-800 
-                                                        font-black shadow-inner font-mono
-                                                        rounded-lg xs:rounded-xl 
-                                                        px-2 xs:px-3 sm:px-5 
-                                                        py-1 xs:py-1.5 sm:py-2
-                                                        text-lg xs:text-xl sm:text-2xl md:text-3xl">
-                                                        <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
+                                                    <div className="flex justify-between items-center w-full px-1 sm:px-4 mt-6">
+                                                        <span className="flex-1 text-center font-black text-gray-700 leading-tight px-1 break-words text-xs xs:text-sm sm:text-base md:text-xl lg:text-2xl">
+                                                            {match.team1?.name || match.Team1?.Name}
+                                                        </span>
+                                                        
+                                                        <div className="flex flex-col items-center shrink-0 mx-1 xs:mx-2">
+                                                            <div className="flex items-center gap-1.5 xs:gap-2 sm:gap-3 bg-gray-100 text-gray-800 font-black shadow-inner font-mono rounded-lg xs:rounded-xl px-2 xs:px-3 sm:px-5 py-1 xs:py-1.5 sm:py-2 text-lg xs:text-xl sm:text-2xl md:text-3xl">
+                                                                <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
+                                                            </div>
+                                                            {pen1 !== null && pen1 !== undefined && (
+                                                                <span className="font-bold text-orange-600 mt-0.5 text-[9px] xs:text-[10px] sm:text-xs">ترجيح: ({pen1}) - ({pen2})</span>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        <span className="flex-1 text-center font-black text-gray-700 leading-tight px-1 break-words text-xs xs:text-sm sm:text-base md:text-xl lg:text-2xl">
+                                                            {match.team2?.name || match.Team2?.Name}
+                                                        </span>
                                                     </div>
-                                                    {/* الترجيح - خط نونو */}
-                                                    {pen1 !== null && pen1 !== undefined && (
-                                                        <span className="font-bold text-orange-600 mt-0.5 text-[9px] xs:text-[10px] sm:text-xs">ترجيح: ({pen1}) - ({pen2})</span>
+
+                                                    {(match.matchSummary || match.MatchSummary) && (
+                                                        <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group hide-in-screenshot">
+                                                            <div className="absolute -left-4 -top-4 text-indigo-100 opacity-50 text-6xl transform -rotate-12 transition group-hover:scale-110 group-hover:rotate-0 duration-300">🎙️</div>
+                                                            <div className="flex items-center gap-2 mb-2 relative z-10">
+                                                                <span className="text-xl">🤖</span>
+                                                                <span className="text-sm font-black text-indigo-800 tracking-wide uppercase">تحليل المعلق الذكي (AI):</span>
+                                                            </div>
+                                                            <p className="text-base font-bold text-gray-700 leading-relaxed italic relative z-10">
+                                                                "{match.matchSummary || match.MatchSummary}"
+                                                            </p>
+                                                        </div>
                                                     )}
                                                 </div>
-                                                
-                                                {/* الفريق الثاني - مرن ويصغر خطه على الموبايل */}
-                                                <span className="flex-1 text-center font-black text-gray-700
-                                                    leading-tight px-1
-                                                    break-words /* 🔥 التعديل السحري: نمنع القص ونسمح بنزول الكلمة سطر */
-                                                    text-xs /* خط صغير في الموبايل */
-                                                    xs:text-sm /* موبايلات أكبر شوية */
-                                                    sm:text-base /* تابلت */
-                                                    md:text-xl /* كمبيوتر عادي */
-                                                    lg:text-2xl /* شاشات كبيرة */">
-                                                    {match.team2?.name || match.Team2?.Name}
-                                                </span>
-                                            </div>
-
-                                            {/* 🤖 تعليق الذكاء الاصطناعي */}
-                                            {(match.matchSummary || match.MatchSummary) && (
-                                                <div className="mt-5 bg-indigo-50 border-r-4 border-indigo-500 p-4 rounded-l-lg shadow-sm relative overflow-hidden group hide-in-screenshot">
-                                                    {/* ... باقي كود الذكاء الاصطناعي زي ما هو ... */}
-                                                    <div className="absolute -left-4 -top-4 text-indigo-100 opacity-50 text-6xl transform -rotate-12 transition group-hover:scale-110 group-hover:rotate-0 duration-300">🎙️</div>
-                                                    <div className="flex items-center gap-2 mb-2 relative z-10">
-                                                        <span className="text-xl">🤖</span>
-                                                        <span className="text-sm font-black text-indigo-800 tracking-wide uppercase">تحليل المعلق الذكي (AI):</span>
-                                                    </div>
-                                                    <p className="text-base font-bold text-gray-700 leading-relaxed italic relative z-10">
-                                                        "{match.matchSummary || match.MatchSummary}"
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                }
+                                            );
+                                        }
                                         else {
                                             const t1Players = Array.isArray(match.team1?.players) ? match.team1.players : (match.team1?.players?.$values || []);
                                             const t2Players = Array.isArray(match.team2?.players) ? match.team2.players : (match.team2?.players?.$values || []);
@@ -346,24 +285,24 @@ export default function Matches({ setActiveTab }) {
                                                     )}
 
                                                     <div className="flex justify-between items-center w-full mt-4 px-1 sm:px-4">
-    <span className={`text-base sm:text-xl md:text-2xl font-black flex-1 text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
-        {match.team1?.name || match.Team1?.Name || "فريق 1"}
-    </span>
-    
-    <div className="shrink-0 mx-2 flex justify-center">
-        {match.isPlaying ? (
-            <div className="flex items-center gap-2 sm:gap-3 bg-red-600 text-white px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-xl sm:text-3xl font-black shadow-md animate-pulse">
-                <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
-            </div>
-        ) : (
-            <span className="text-gray-400 font-black text-sm sm:text-xl bg-gray-200 px-3 py-1 rounded-lg">VS</span>
-        )}
-    </div>
+                                                        <span className={`text-base sm:text-xl md:text-2xl font-black flex-1 text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
+                                                            {match.team1?.name || match.Team1?.Name || "فريق 1"}
+                                                        </span>
+                                                        
+                                                        <div className="shrink-0 mx-2 flex justify-center">
+                                                            {match.isPlaying ? (
+                                                                <div className="flex items-center gap-2 sm:gap-3 bg-red-600 text-white px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-xl sm:text-3xl font-black shadow-md animate-pulse">
+                                                                    <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-gray-400 font-black text-sm sm:text-xl bg-gray-200 px-3 py-1 rounded-lg">VS</span>
+                                                            )}
+                                                        </div>
 
-    <span className={`text-base sm:text-xl md:text-2xl font-black flex-1 text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
-        {match.team2?.name || match.Team2?.Name || "فريق 2"}
-    </span>
-</div>
+                                                        <span className={`text-base sm:text-xl md:text-2xl font-black flex-1 text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
+                                                            {match.team2?.name || match.Team2?.Name || "فريق 2"}
+                                                        </span>
+                                                    </div>
 
                                                     {match.isPlaying && (
                                                         <div className="mt-4 text-red-600 font-black text-sm flex items-center gap-2 bg-red-50 px-3 py-1 rounded-full border border-red-200">
@@ -371,7 +310,6 @@ export default function Matches({ setActiveTab }) {
                                                         </div>
                                                     )}
 
-                                                    {/* 🔥 التعديل: إضافة hide-in-screenshot عشان ميظهرش في الصورة */}
                                                     {isAdmin && !match.isPlaying && (
                                                         <div className="mt-6 flex gap-4 w-full justify-center border-t pt-4 hide-in-screenshot">
                                                             <button onClick={() => handleStartMatch(match.id || match.Id)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow">
@@ -385,51 +323,32 @@ export default function Matches({ setActiveTab }) {
                                                         </div>
                                                     )}
 
-                                                    {/* 🔥 التعديل: إضافة hide-in-screenshot لزراير الأهداف والكروت وصافرة النهاية */}
                                                     {isAdmin && match.isPlaying && (
                                                         <div className="mt-6 w-full border-t border-gray-100 pt-6 hide-in-screenshot">
                                                             <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4">سجل الأهداف والكروت 👇</h4>
                                                             <div className="flex flex-col md:flex-row gap-4 w-full">
                                                                 
-                                                                {/* الفريق الأول */}
                                                                 <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
                                                                     {t1Players.map(player => (
                                                                         <div key={player.id || player.Id} className={`flex items-center justify-between p-2 rounded-lg shadow-sm border ${player.isSuspended ? 'bg-red-50 opacity-75' : 'bg-white'}`}>
-                                                                            
-                                                                            {/* 🔥 التعديل هنا: عرض الاسم مع الإحصائيات (أهداف وكروت) 🔥 */}
                                                                             <span className="font-bold text-sm text-gray-800 flex-1 flex items-center flex-wrap gap-1">
-    <span>{player.name || player.Name}</span>
-    
-    {/* 🔥 كروت الماتش الحالي فقط 🔥 */}
-    {(player.yellowCardsThisMatch > 0 || player.YellowCardsThisMatch > 0) && (
-        <span className="text-yellow-600 font-black text-[10px] sm:text-xs mx-0.5 bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300 shadow-sm">
-            {player.yellowCardsThisMatch || player.YellowCardsThisMatch} 🟨
-        </span>
-    )}
-    
-    {/* لو أخد طرد (أحمر أو أزرق أو إنذارين) في الماتش الحالي */}
-    {(player.suspendedThisMatch === true || player.SuspendedThisMatch === true) && (
-        <span className="text-red-600 font-black text-[10px] sm:text-xs mx-0.5 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shadow-sm">
-            🟥 طرد في المباراة
-        </span>
-    )}
-
-    {/* الأهداف الإجمالية للاعب في البطولة (ممكن تسيبها أو تشيلها حسب رغبتك) */}
-    {(player.goals > 0 || player.Goals > 0) && (
-        <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
-            {player.goals || player.Goals} ⚽
-        </span>
-    )}
-
-
-
-
-
-                                                                                {player.isSuspended && (
-                                                                                    <span className="text-red-600 mr-1 text-xs font-black">🚫 ({player.suspendedMatchesLeft || player.SuspendedMatchesLeft} ماتش)</span>
+                                                                                <span>{player.name || player.Name}</span>
+                                                                                {(player.yellowCardsThisMatch > 0 || player.YellowCardsThisMatch > 0) && (
+                                                                                    <span className="text-yellow-600 font-black text-[10px] sm:text-xs mx-0.5 bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300 shadow-sm">
+                                                                                        {player.yellowCardsThisMatch || player.YellowCardsThisMatch} 🟨
+                                                                                    </span>
+                                                                                )}
+                                                                                {(player.suspendedThisMatch === true || player.SuspendedThisMatch === true) && (
+                                                                                    <span className="text-red-600 font-black text-[10px] sm:text-xs mx-0.5 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shadow-sm">
+                                                                                        🟥 طرد في المباراة
+                                                                                    </span>
+                                                                                )}
+                                                                                {(player.goals > 0 || player.Goals > 0) && (
+                                                                                    <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
+                                                                                        {player.goals || player.Goals} ⚽
+                                                                                    </span>
                                                                                 )}
                                                                             </span>
-
                                                                             {!player.isSuspended && (
                                                                                 <div className="flex gap-1 shrink-0">
                                                                                     <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'yellow-card')} className="bg-yellow-400 px-2 py-1 rounded text-xs hover:bg-yellow-500 transition shadow-sm">🟨</button>
@@ -443,37 +362,27 @@ export default function Matches({ setActiveTab }) {
                                                                     ))}
                                                                 </div>
 
-                                                                {/* الفريق الثاني */}
                                                                 <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
                                                                     {t2Players.map(player => (
                                                                         <div key={player.id || player.Id} className={`flex items-center justify-between p-2 rounded-lg shadow-sm border ${player.isSuspended ? 'bg-red-50 opacity-75' : 'bg-white'}`}>
-                                                                            
-                                                                            {/* 🔥 التعديل هنا: عرض الاسم مع الإحصائيات (أهداف وكروت) 🔥 */}
                                                                             <span className="font-bold text-sm text-gray-800 flex-1 flex items-center flex-wrap gap-1">
-    <span>{player.name || player.Name}</span>
-    
-    {/* 🔥 كروت الماتش الحالي فقط 🔥 */}
-    {(player.yellowCardsThisMatch > 0 || player.YellowCardsThisMatch > 0) && (
-        <span className="text-yellow-600 font-black text-[10px] sm:text-xs mx-0.5 bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300 shadow-sm">
-            {player.yellowCardsThisMatch || player.YellowCardsThisMatch} 🟨
-        </span>
-    )}
-    
-    {/* لو أخد طرد (أحمر أو أزرق أو إنذارين) في الماتش الحالي */}
-    {(player.suspendedThisMatch === true || player.SuspendedThisMatch === true) && (
-        <span className="text-red-600 font-black text-[10px] sm:text-xs mx-0.5 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shadow-sm">
-            🟥 طرد في المباراة
-        </span>
-    )}
-
-    {/* الأهداف الإجمالية للاعب في البطولة (ممكن تسيبها أو تشيلها حسب رغبتك) */}
-    {(player.goals > 0 || player.Goals > 0) && (
-        <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
-            {player.goals || player.Goals} ⚽
-        </span>
-    )}
-</span>
-
+                                                                                <span>{player.name || player.Name}</span>
+                                                                                {(player.yellowCardsThisMatch > 0 || player.YellowCardsThisMatch > 0) && (
+                                                                                    <span className="text-yellow-600 font-black text-[10px] sm:text-xs mx-0.5 bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300 shadow-sm">
+                                                                                        {player.yellowCardsThisMatch || player.YellowCardsThisMatch} 🟨
+                                                                                    </span>
+                                                                                )}
+                                                                                {(player.suspendedThisMatch === true || player.SuspendedThisMatch === true) && (
+                                                                                    <span className="text-red-600 font-black text-[10px] sm:text-xs mx-0.5 bg-red-100 px-1.5 py-0.5 rounded border border-red-300 shadow-sm">
+                                                                                        🟥 طرد في المباراة
+                                                                                    </span>
+                                                                                )}
+                                                                                {(player.goals > 0 || player.Goals > 0) && (
+                                                                                    <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
+                                                                                        {player.goals || player.Goals} ⚽
+                                                                                    </span>
+                                                                                )}
+                                                                            </span>
                                                                             {!player.isSuspended && (
                                                                                 <div className="flex gap-1 shrink-0">
                                                                                     <button onClick={() => actionPlayer(match.id || match.Id, player.id || player.Id, 'yellow-card')} className="bg-yellow-400 px-2 py-1 rounded text-xs hover:bg-yellow-500 transition shadow-sm">🟨</button>
@@ -486,6 +395,7 @@ export default function Matches({ setActiveTab }) {
                                                                         </div>
                                                                     ))}
                                                                 </div>
+
                                                             </div>
                                                             <button onClick={() => handleFinishMatch(match.id || match.Id)} className="w-64 mx-auto block bg-red-600 text-white px-8 py-3 rounded-xl font-black hover:bg-red-700 transition shadow-lg mt-6">
                                                                 صافرة النهاية 🛑
@@ -497,13 +407,10 @@ export default function Matches({ setActiveTab }) {
                                         }
                                     })}
                                 </div>
-
                                 <div className="text-center mt-6 text-gray-400 font-bold text-xs opacity-80">
                                     مع تحيات إدارة البطولة ⚽
                                 </div>
-
                             </div>
-
                         </div>
                     );
                 })
