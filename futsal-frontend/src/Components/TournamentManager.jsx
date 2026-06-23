@@ -101,19 +101,6 @@ export default function TournamentManager() {
                             <span className="font-bold text-gray-700">تأهيل أفضل ثوالث</span>
                             <input type="checkbox" checked={settings.enableBestThirds} onChange={e => setSettings({...settings, enableBestThirds: e.target.checked})} className="w-5 h-5 cursor-pointer"/>
                         </div>
-
-                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded border">
-                            <span className="font-bold text-gray-700">فرق المجموعة</span>
-                            <select 
-                                value={settings.groupSize} 
-                                onChange={e => setSettings({...settings, groupSize: parseInt(e.target.value)})}
-                                disabled={settings.isGroupStageDrawn} 
-                                className="border rounded p-1 font-bold outline-none"
-                            >
-                                <option value={3}>3 فرق</option>
-                                <option value={4}>4 فرق</option>
-                            </select>
-                        </div>
                     </div>
 
                     <div className="flex gap-4">

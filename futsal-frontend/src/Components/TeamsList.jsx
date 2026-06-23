@@ -5,10 +5,11 @@ export default function TeamsList() {
     const [loading, setLoading] = useState(true);
     const [expandedTeams, setExpandedTeams] = useState({});
     
-    // 🔥 حالة أقصى عدد للاعبين (الافتراضي 8 لحد ما ييجي من السيرفر)
+    // إعدادات البطولة
+    const [settings, setSettings] = useState(null);
     const [maxPlayers, setMaxPlayers] = useState(8);
-    
     const [teamsPerGroup, setTeamsPerGroup] = useState(4); 
+    
     const isAdmin = !!localStorage.getItem('adminToken');
 
     const fetchTeams = () => {
@@ -28,16 +29,48 @@ export default function TeamsList() {
     useEffect(() => {
         fetchTeams();
         
-        // ⚙️ جلب إعدادات البطولة لمعرفة أقصى عدد لاعبين ديناميكياً
+        // ⚙️ جلب إعدادات البطولة (أقصى لاعبين، وحجم المجموعة، وحالة القرعة)
         fetch('/api/Tournament/settings')
             .then(res => res.json())
             .then(data => {
                 if (data) {
+                    setSettings(data);
                     setMaxPlayers(data.maxPlayers || data.MaxPlayers || 8);
+                    setTeamsPerGroup(data.groupSize || data.GroupSize || 4);
                 }
             })
             .catch(err => console.error("Error fetching settings:", err));
     }, []);
+
+    // 🔥 دالة حفظ إعداد عدد فرق المجموعة
+    const handleSaveGroupSize = async () => {
+        if (!settings) return;
+        
+        const token = localStorage.getItem('adminToken');
+        const updatedSettings = { 
+            ...settings, 
+            groupSize: teamsPerGroup // تحديث حجم المجموعة بالقيمة المختارة
+        };
+
+        try {
+            const res = await fetch('/api/Tournament/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(updatedSettings)
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                setSettings(updatedSettings);
+                alert("تم حفظ حجم المجموعة وإعدادات القرعة بنجاح! 💾✅");
+            } else {
+                alert(data.message || data.Message || "حدث خطأ أثناء الحفظ.");
+            }
+        } catch (error) {
+            console.error("Error saving group size:", error);
+            alert("مشكلة في الاتصال بالسيرفر.");
+        }
+    };
 
     const toggleTeam = (teamId) => {
         setExpandedTeams(prev => ({
@@ -81,9 +114,7 @@ export default function TeamsList() {
         try {
             const response = await fetch(`/api/Players/${playerId}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (response.ok) {
@@ -105,11 +136,8 @@ export default function TeamsList() {
         try {
             const response = await fetch(`/api/Teams/${teamId}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-
             const data = await response.json();
 
             if (response.ok) {
@@ -126,6 +154,8 @@ export default function TeamsList() {
 
     if (loading) return <div className="text-center mt-10 font-bold text-xl text-gray-700">جاري تحميل الفرق... ⏳</div>;
 
+    const isDrawn = settings?.isGroupStageDrawn || settings?.IsGroupStageDrawn;
+
     return (
         <div className="max-w-4xl mx-auto mt-8 px-4 pb-12" dir="rtl">
             <h2 className="text-3xl font-black text-center mb-8 text-gray-800">الفرق المشاركة في البطولة 🏃‍♂️</h2>
@@ -135,17 +165,27 @@ export default function TeamsList() {
                     <h3 className="font-bold text-blue-900 flex items-center gap-2">
                         <span>🏆</span> إعدادات تصنيف القرعة:
                     </h3>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap justify-center">
                         <label className="text-sm font-bold text-gray-700">عدد الفرق بالمجموعة:</label>
                         <select 
                             value={teamsPerGroup} 
                             onChange={(e) => setTeamsPerGroup(Number(e.target.value))}
-                            className="bg-blue-50 border border-blue-200 text-blue-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2 font-bold cursor-pointer"
+                            disabled={isDrawn}
+                            className="bg-blue-50 border border-blue-200 text-blue-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2 font-bold cursor-pointer disabled:bg-gray-200 disabled:cursor-not-allowed"
                         >
                             <option value={3}>3 فرق (أقصى تصنيف: 3)</option>
                             <option value={4}>4 فرق (أقصى تصنيف: 4)</option>
                             <option value={5}>5 فرق (أقصى تصنيف: 5)</option>
                         </select>
+                        
+                        {/* 👇 زرار حفظ الإعدادات الجديد 👇 */}
+                        <button 
+                            onClick={handleSaveGroupSize}
+                            disabled={isDrawn}
+                            className="bg-gray-800 text-white font-bold py-1.5 px-4 rounded-lg hover:bg-black transition shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                            حفظ 💾
+                        </button>
                     </div>
                 </div>
             )}
@@ -200,8 +240,6 @@ export default function TeamsList() {
                                         <span className="text-2xl">🛡️</span>
                                         <div className="text-right">
                                             <h3 className="text-xl font-black">{team.name || team.Name}</h3>
-                                            
-                                            {/* 👇 التعديل هنا: قراءة أقصى عدد لاعبين من المتغير maxPlayers 👇 */}
                                             <p className="text-xs text-blue-200 mt-0.5">الكابتن: {team.captainName || team.CaptainName} | {players.length} / {maxPlayers} لاعبين</p>
                                         </div>
                                     </div>
@@ -254,7 +292,6 @@ export default function TeamsList() {
                                         )}
                                     </div>
                                 </div>
-
                             </div>
                         );
                     })}
