@@ -205,22 +205,29 @@ export default function Matches({ setActiveTab }) {
 
     const token = localStorage.getItem('adminToken');
     try {
-        const res = await fetch(`/api/Matches/withdraw/${matchId}`, {
+        // 🔥 التعديل هنا: المسار اتعدل عشان يطابق الباك إند بالظبط 🔥
+        const res = await fetch(`/api/Matches/${matchId}/withdraw`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            // بنبعت الـ ID بتاع الفريق المنسحب في البودي
             body: JSON.stringify(withdrawingTeamId) 
         });
 
         if (res.ok) {
             alert('تم تسجيل الانسحاب وإغلاق المباراة بنجاح! ⚖️✅');
-            fetchMatches(); // استدعاء دالة تحديث المباريات عشان الماتش يروح للنتائج
+            // لو الدالة بتاعتك اللي بتجيب الماتشات اسمها مختلف، غير fetchMatches لاسمها
+            fetchMatches(); 
         } else {
-            const data = await res.json();
-            alert(data.message || data.Message || 'حدث خطأ أثناء تسجيل الانسحاب.');
+            // حماية عشان لو السيرفر رجع إيرور 404 أو 500 ميضربش إيرور الـ JSON
+            const text = await res.text();
+            try {
+                const data = JSON.parse(text);
+                alert(data.message || data.Message || 'حدث خطأ أثناء تسجيل الانسحاب.');
+            } catch {
+                alert('حدث خطأ في السيرفر أو المسار غير صحيح.');
+            }
         }
     } catch (error) {
         console.error("Withdraw Error:", error);
