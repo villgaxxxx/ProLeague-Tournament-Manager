@@ -35,21 +35,23 @@ export default function TeamsList() {
             .then(data => {
                 if (data) {
                     setSettings(data);
-                    setMaxPlayers(data.maxPlayers || data.MaxPlayers || 8);
+                    // لو الداتا بيز رجعت صفر بالغلط، بنعتبرها 8 كحد افتراضي أمان
+                    setMaxPlayers((data.maxPlayers > 0 || data.MaxPlayers > 0) ? (data.maxPlayers || data.MaxPlayers) : 8);
                     setTeamsPerGroup(data.groupSize || data.GroupSize || 4);
                 }
             })
             .catch(err => console.error("Error fetching settings:", err));
     }, []);
 
-    // 🔥 دالة حفظ إعداد عدد فرق المجموعة
-    const handleSaveGroupSize = async () => {
-        if (!settings) return;
-        
+    // 🔥 دالة الحفظ المجمعة (حجم المجموعة + أقصى عدد لاعبين)
+    const handleSaveSettings = async () => {
         const token = localStorage.getItem('adminToken');
+        
+        // لو الإعدادات مش موجودة (أول مرة)، بنكريت أوبجيكت جديد
         const updatedSettings = { 
-            ...settings, 
-            groupSize: teamsPerGroup // تحديث حجم المجموعة بالقيمة المختارة
+            ...(settings || {}), 
+            groupSize: teamsPerGroup, 
+            maxPlayers: maxPlayers 
         };
 
         try {
@@ -62,12 +64,12 @@ export default function TeamsList() {
             
             if (res.ok) {
                 setSettings(updatedSettings);
-                alert("تم حفظ حجم المجموعة وإعدادات القرعة بنجاح! 💾✅");
+                alert("تم حفظ إعدادات الفرق والقرعة بنجاح! 💾✅");
             } else {
                 alert(data.message || data.Message || "حدث خطأ أثناء الحفظ.");
             }
         } catch (error) {
-            console.error("Error saving group size:", error);
+            console.error("Error saving settings:", error);
             alert("مشكلة في الاتصال بالسيرفر.");
         }
     };
@@ -160,31 +162,46 @@ export default function TeamsList() {
         <div className="max-w-4xl mx-auto mt-8 px-4 pb-12" dir="rtl">
             <h2 className="text-3xl font-black text-center mb-8 text-gray-800">الفرق المشاركة في البطولة 🏃‍♂️</h2>
 
-            {isAdmin && teams.length > 0 && (
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-100 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+            {/* 🔥 شريط الإعدادات الجديد (أقصى لاعبين + حجم المجموعة) 🔥 */}
+            {isAdmin && (
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-blue-100 mb-6 flex flex-col gap-4">
                     <h3 className="font-bold text-blue-900 flex items-center gap-2">
-                        <span>🏆</span> إعدادات تصنيف القرعة:
+                        <span>⚙️</span> إعدادات الفرق والقرعة:
                     </h3>
-                    <div className="flex items-center gap-2 flex-wrap justify-center">
-                        <label className="text-sm font-bold text-gray-700">عدد الفرق بالمجموعة:</label>
-                        <select 
-                            value={teamsPerGroup} 
-                            onChange={(e) => setTeamsPerGroup(Number(e.target.value))}
-                            disabled={isDrawn}
-                            className="bg-blue-50 border border-blue-200 text-blue-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2 font-bold cursor-pointer disabled:bg-gray-200 disabled:cursor-not-allowed"
-                        >
-                            <option value={3}>3 فرق (أقصى تصنيف: 3)</option>
-                            <option value={4}>4 فرق (أقصى تصنيف: 4)</option>
-                            <option value={5}>5 فرق (أقصى تصنيف: 5)</option>
-                        </select>
+                    <div className="flex items-center gap-4 flex-wrap">
                         
-                        {/* 👇 زرار حفظ الإعدادات الجديد 👇 */}
+                        <div className="flex items-center gap-2 bg-blue-50 p-2 rounded-lg border border-blue-100">
+                            <label className="text-sm font-bold text-gray-700">أقصى عدد لاعبين:</label>
+                            <input 
+                                type="number" 
+                                min="5" 
+                                max="20" 
+                                value={maxPlayers} 
+                                onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                                className="w-16 p-1 border rounded text-center font-bold outline-none text-blue-900 bg-white"
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-2 bg-blue-50 p-2 rounded-lg border border-blue-100">
+                            <label className="text-sm font-bold text-gray-700">عدد الفرق بالمجموعة:</label>
+                            <select 
+                                value={teamsPerGroup} 
+                                onChange={(e) => setTeamsPerGroup(Number(e.target.value))}
+                                disabled={isDrawn}
+                                className="bg-white border text-blue-900 text-sm rounded focus:ring-blue-500 focus:border-blue-500 p-1 font-bold cursor-pointer disabled:bg-gray-200 disabled:cursor-not-allowed"
+                            >
+                                <option value={3}>3 فرق (أقصى تصنيف: 3)</option>
+                                <option value={4}>4 فرق (أقصى تصنيف: 4)</option>
+                                <option value={5}>5 فرق (أقصى تصنيف: 5)</option>
+                            </select>
+                        </div>
+                        
                         <button 
-                            onClick={handleSaveGroupSize}
+                            onClick={handleSaveSettings}
                             disabled={isDrawn}
-                            className="bg-gray-800 text-white font-bold py-1.5 px-4 rounded-lg hover:bg-black transition shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            className="bg-gray-800 text-white font-bold py-2 px-6 rounded-lg hover:bg-black transition shadow-sm mr-auto disabled:bg-gray-400 disabled:cursor-not-allowed"
                         >
-                            حفظ 💾
+                            حفظ الإعدادات 💾
                         </button>
                     </div>
                 </div>
