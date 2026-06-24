@@ -14,6 +14,7 @@ import TournamentManager from './Components/TournamentManager';
 import AdminSchedule from './Components/AdminSchedule';
 import KnockoutBracket from './Components/KnockoutBracket';
 import TeamsSummary from "./Components/TeamsSummary";
+import MediaHub from './Components/MediaHub';
 
 function App() {
     const [activeTab, setActiveTab] = useState('standings');
@@ -114,6 +115,7 @@ function App() {
                     <button onClick={() => handleTabClick('results')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'results' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>نتائج المباريات ⚽</button>
                     <button onClick={() => handleTabClick('topScorers')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'topScorers' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>الهدافين 🏅</button>
                     <button onClick={() => handleTabClick('notifications')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'notifications' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>📢 الإعلانات والإيقافات</button>
+                    <button onClick={() => setActiveTab('media')} className={`font-bold transition ${activeTab === 'media' ? 'text-red-400' : 'text-white hover:text-gray-200'}`}> الميديا 🎥</button>
 
                     {/* زراير الإدمن */}
                     {isAdmin && (
@@ -157,6 +159,7 @@ function App() {
                 {activeTab === 'register' && <RegisterTeam />}
                 {activeTab === 'login' && <Login onLoginSuccess={() => { setIsAdmin(true); setActiveTab('standings'); }} />}
                 {activeTab === 'topScorers' && <TopScorers />}
+                {activeTab === 'media' && <MediaHub />}
                 {activeTab === 'addPlayer' && <AddPlayer />}
                 {activeTab === 'manageTeam' && <ManageTeam />}
                 {activeTab === 'teamsList' && <TeamsList />}
