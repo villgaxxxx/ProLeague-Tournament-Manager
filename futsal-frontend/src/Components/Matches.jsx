@@ -199,6 +199,35 @@ export default function Matches({ setActiveTab }) {
         );
     };
 
+    const handleWithdraw = async (matchId, withdrawingTeamId, teamName) => {
+    const confirmWithdraw = window.confirm(`🚨 تحذير خطير: هل أنت متأكد من انسحاب فريق "${teamName}"؟\nستنتهي المباراة فوراً بنتيجة 3-0 للفريق الآخر ولن يمكن التراجع!`);
+    if (!confirmWithdraw) return;
+
+    const token = localStorage.getItem('adminToken');
+    try {
+        const res = await fetch(`/api/Matches/withdraw/${matchId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            // بنبعت الـ ID بتاع الفريق المنسحب في البودي
+            body: JSON.stringify(withdrawingTeamId) 
+        });
+
+        if (res.ok) {
+            alert('تم تسجيل الانسحاب وإغلاق المباراة بنجاح! ⚖️✅');
+            fetchMatches(); // استدعاء دالة تحديث المباريات عشان الماتش يروح للنتائج
+        } else {
+            const data = await res.json();
+            alert(data.message || data.Message || 'حدث خطأ أثناء تسجيل الانسحاب.');
+        }
+    } catch (error) {
+        console.error("Withdraw Error:", error);
+        alert('مشكلة في الاتصال بالسيرفر.');
+    }
+};
+
     
 
     return (
@@ -311,25 +340,63 @@ export default function Matches({ setActiveTab }) {
                                                         </div>
                                                     )}
 
-                                                    <div className="flex justify-between items-center w-full mt-4 px-1 sm:px-4">
-                                                        <span className={`text-base sm:text-xl md:text-2xl font-black flex-1 text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
-                                                            {match.team1?.name || match.Team1?.Name || "فريق 1"}
-                                                        </span>
-                                                        
-                                                        <div className="shrink-0 mx-2 flex justify-center">
-                                                            {match.isPlaying ? (
-                                                                <div className="flex items-center gap-2 sm:gap-3 bg-red-600 text-white px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-xl sm:text-3xl font-black shadow-md animate-pulse">
-                                                                    <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-gray-400 font-black text-sm sm:text-xl bg-gray-200 px-3 py-1 rounded-lg">VS</span>
-                                                            )}
-                                                        </div>
+                                                   <div className="flex justify-between items-center w-full mt-4 px-1 sm:px-4">
+    
+    {/* 👇 الجزء الخاص بالفريق الأول 👇 */}
+    <div className="flex flex-col items-center flex-1">
+        <span className={`text-base sm:text-xl md:text-2xl font-black text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
+            {match.team1?.name || match.Team1?.Name || "فريق 1"}
+        </span>
+        {/* زرار الانسحاب */}
+        {isAdmin && (
+            <button
+                onClick={(e) => {
+                    e.stopPropagation(); // عشان لو الكارت كله كليكابل ميفتحش الماتش
+                    const teamId = match.team1Id || match.Team1Id || match.team1?.id || match.Team1?.Id;
+                    const teamName = match.team1?.name || match.Team1?.Name;
+                    handleWithdraw(match.id || match.Id, teamId, teamName);
+                }}
+                className="mt-2 text-[10px] sm:text-xs bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white px-2 py-1 rounded font-bold transition shadow-sm z-10"
+                title="تسجيل انسحاب هذا الفريق"
+            >
+                انسحاب 🏃‍♂️
+            </button>
+        )}
+    </div>
 
-                                                        <span className={`text-base sm:text-xl md:text-2xl font-black flex-1 text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
-                                                            {match.team2?.name || match.Team2?.Name || "فريق 2"}
-                                                        </span>
-                                                    </div>
+    {/* 👇 الجزء الخاص بالنتيجة أو علامة VS 👇 */}
+    <div className="shrink-0 mx-2 flex justify-center">
+        {match.isPlaying ? (
+            <div className="flex items-center gap-2 sm:gap-3 bg-red-600 text-white px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-xl sm:text-3xl font-black shadow-md animate-pulse">
+                <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
+            </div>
+        ) : (
+            <span className="text-gray-400 font-black text-sm sm:text-xl bg-gray-200 px-3 py-1 rounded-lg">VS</span>
+        )}
+    </div>
+
+    {/* 👇 الجزء الخاص بالفريق الثاني 👇 */}
+    <div className="flex flex-col items-center flex-1">
+        <span className={`text-base sm:text-xl md:text-2xl font-black text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
+            {match.team2?.name || match.Team2?.Name || "فريق 2"}
+        </span>
+        {/* زرار الانسحاب */}
+        {isAdmin && (
+            <button
+                onClick={(e) => {
+                    e.stopPropagation(); // لمنع تداخل الكليكات
+                    const teamId = match.team2Id || match.Team2Id || match.team2?.id || match.Team2?.Id;
+                    const teamName = match.team2?.name || match.Team2?.Name;
+                    handleWithdraw(match.id || match.Id, teamId, teamName);
+                }}
+                className="mt-2 text-[10px] sm:text-xs bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white px-2 py-1 rounded font-bold transition shadow-sm z-10"
+                title="تسجيل انسحاب هذا الفريق"
+            >
+                انسحاب 🏃‍♂️
+            </button>
+        )}
+    </div>
+</div>
 
                                                     {match.isPlaying && (
                                                         <div className="mt-4 text-red-600 font-black text-sm flex items-center gap-2 bg-red-50 px-3 py-1 rounded-full border border-red-200">
