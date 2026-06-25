@@ -5,6 +5,9 @@ export default function Matches({ setActiveTab }) {
     const [matches, setMatches] = useState([]);
     const [champion, setChampion] = useState(null);
     const isAdmin = !!localStorage.getItem('adminToken');
+    const [postponingMatchId, setPostponingMatchId] = useState(null);
+    const [postponeReason, setPostponeReason] = useState("");
+    const [newMatchDate, setNewMatchDate] = useState("");
 
     const fetchMatches = useCallback(() => {
         fetch('/api/Matches')
@@ -35,18 +38,53 @@ export default function Matches({ setActiveTab }) {
         fetchMatches();
     };
 
-    const handlePostponeMatch = async (id) => {
-        const reason = window.prompt("ما هو سبب تأجيل المباراة؟ (مثال: سوء الأحوال الجوية، انسحاب...)");
-        if (!reason) return;
+    const handleStartPostpone = (match) => {
+    setPostponingMatchId(match.id || match.Id);
+    setPostponeReason(match.postponeReason || match.PostponeReason || "");
+    
+    // تظبيط التاريخ القديم عشان يتعرض في الخانة
+    const mDate = match.matchDate || match.MatchDate;
+    const formattedDate = mDate ? new Date(mDate).toISOString().slice(0, 16) : "";
+    setNewMatchDate(formattedDate);
+};
 
-        const token = localStorage.getItem('adminToken');
-        await fetch(`/api/Matches/${id}/postpone`, {
+// دالة للإلغاء لو قفل الخانات
+const handleCancelPostpone = () => {
+    setPostponingMatchId(null);
+    setPostponeReason("");
+    setNewMatchDate("");
+};
+
+// دالة الحفظ
+const handleConfirmPostpone = async (matchId) => {
+    if (!postponeReason || !newMatchDate) {
+        return alert("يرجى إدخال سبب التأجيل والموعد الجديد!");
+    }
+
+    const token = localStorage.getItem('adminToken');
+    try {
+        const res = await fetch(`/api/Matches/${matchId}/postpone`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify(reason)
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({
+                Reason: postponeReason,
+                NewDate: new Date(newMatchDate).toISOString()
+            })
         });
-        fetchMatches();
-    };
+
+        if (res.ok) {
+            setPostponingMatchId(null); // اقفل الخانات
+            fetchMatches(); // حدّث الماتشات
+        } else {
+            alert("حدث خطأ أثناء التأجيل.");
+        }
+    } catch (error) {
+        alert("مشكلة في الاتصال بالسيرفر.");
+    }
+};
 
     const actionPlayer = async (matchId, playerId, action) => {
         const token = localStorage.getItem('adminToken');
@@ -440,10 +478,60 @@ export default function Matches({ setActiveTab }) {
                                                                 ▶️ بدء المباراة
                                                             </button>
                                                             {!match.isPostponed && (
-                                                                <button onClick={() => handlePostponeMatch(match.id || match.Id)} className="bg-yellow-500 text-yellow-900 px-6 py-2 rounded-lg font-bold hover:bg-yellow-600 transition shadow">
-                                                                    ⏸️ تأجيل
-                                                                </button>
-                                                            )}
+    <div className="mt-2 w-full flex justify-center">
+        {postponingMatchId === (match.id || match.Id) ? (
+            /* 👇 الخانات اللي بتفتح مكان الزرار (واخدة نفس درجات الأصفر عشان تليق مع ستايلك) 👇 */
+            <div className="bg-yellow-50 border border-yellow-300 p-4 rounded-xl flex flex-col gap-3 animate-fade-in text-right w-full max-w-sm shadow-inner">
+                <p className="text-yellow-900 font-black text-sm text-center border-b border-yellow-200 pb-2">⏳ إعدادات التأجيل:</p>
+                
+                <div>
+                    <label className="block text-xs font-bold text-yellow-900 mb-1">سبب التأجيل:</label>
+                    <input 
+                        type="text" 
+                        placeholder="مثال: سوء الأحوال الجوية..."
+                        value={postponeReason}
+                        onChange={(e) => setPostponeReason(e.target.value)}
+                        className="w-full p-2 border border-yellow-400 rounded-lg focus:ring-2 focus:ring-yellow-600 outline-none font-bold text-sm bg-white"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-yellow-900 mb-1">الموعد الجديد:</label>
+                    <input 
+                        type="datetime-local" 
+                        value={newMatchDate}
+                        onChange={(e) => setNewMatchDate(e.target.value)}
+                        className="w-full p-2 border border-yellow-400 rounded-lg focus:ring-2 focus:ring-yellow-600 outline-none font-bold text-sm text-left bg-white"
+                        dir="ltr"
+                    />
+                </div>
+
+                <div className="flex gap-2 mt-2">
+                    <button 
+                        onClick={() => handleConfirmPostpone(match.id || match.Id)}
+                        className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-black py-2 rounded-lg text-sm transition shadow-sm"
+                    >
+                        حفظ ✔️
+                    </button>
+                    <button 
+                        onClick={handleCancelPostpone}
+                        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-black py-2 rounded-lg text-sm transition shadow-sm"
+                    >
+                        إلغاء ❌
+                    </button>
+                </div>
+            </div>
+        ) : (
+            /* 👇 الزرار بتاعك الأصلي بنفس الستايل بالمللي 👇 */
+            <button 
+                onClick={() => handleStartPostpone(match)} 
+                className="bg-yellow-500 text-yellow-900 px-6 py-2 rounded-lg font-bold hover:bg-yellow-600 transition shadow"
+            >
+                ⏸️ تأجيل
+            </button>
+        )}
+    </div>
+)}
                                                         </div>
                                                     )}
 
