@@ -81,12 +81,6 @@ export default function AdminSchedule() {
         <div className="max-w-4xl mx-auto mt-8 px-4 pb-12" dir="rtl">
             <h2 className="text-3xl font-black text-center mb-8 text-indigo-900">غرفة جدولة المباريات 🗓️ (سري)</h2>
 
-            <div className="flex justify-center mb-10">
-                <button onClick={handleGenerate} className="bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 shadow-lg transition-transform hover:scale-105">
-                    ⚙️ توليد مباريات المجموعات تلقائياً
-                </button>
-            </div>
-
             {drafts.length > 0 ? (
                 <div className="space-y-8">
                     <h3 className="font-bold text-gray-700 text-center bg-yellow-100 py-2 rounded-lg border border-yellow-300">
