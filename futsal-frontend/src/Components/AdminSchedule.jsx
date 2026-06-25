@@ -40,20 +40,24 @@ export default function AdminSchedule() {
     };
 
     // 3. دالة ترحيل جولة محددة (الجديدة 🚀)
-    const handlePublishRound = async (roundNumber) => {
-        const confirm = window.confirm(`هل أنت متأكد من ترحيل ونشر مباريات الجولة ${roundNumber} للجمهور؟`);
+    // 3. دالة ترحيل جولة محددة
+    const handlePublishRound = async (roundKey) => {
+        // 🔥 الحل هنا: لو الجولة "غير محدد"، هنبعت للسيرفر رقم 0 عشان ميضربش إيرور
+        const roundNumberToSend = roundKey === "غير محدد" ? 0 : parseInt(roundKey);
+
+        const confirm = window.confirm(`هل أنت متأكد من ترحيل ونشر مباريات ${roundKey === "غير محدد" ? "هذه الجولة" : `الجولة ${roundKey}`} للجمهور؟`);
         if (!confirm) return;
 
         const token = localStorage.getItem('adminToken');
         try {
-            const res = await fetch(`/api/Tournament/publish-round/${roundNumber}`, {
+            const res = await fetch(`/api/Tournament/publish-round/${roundNumberToSend}`, {
                 method: 'PUT',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
             
             if (res.ok) {
-                alert(`تم نشر الجولة ${roundNumber} بنجاح! 🚀`);
+                alert(`تم النشر بنجاح! 🚀`);
                 fetchDrafts(); // الماتشات المترحلة هتختفي من صفحة المسودة
             } else {
                 alert(data.message || data.Message);
