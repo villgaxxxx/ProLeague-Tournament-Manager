@@ -115,7 +115,7 @@ function App() {
                     <button onClick={() => handleTabClick('results')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'results' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>نتائج المباريات ⚽</button>
                     <button onClick={() => handleTabClick('topScorers')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'topScorers' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>الهدافين 🏅</button>
                     <button onClick={() => handleTabClick('notifications')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'notifications' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>الإعلانات والإيقافات 📢</button>
-                    <button onClick={() => setActiveTab('media')} className={`font-bold transition ${activeTab === 'media' ? 'text-red-400' : 'text-white hover:text-gray-200'}`}>الميديا 🎥</button>
+                    <button onClick={() => handleTabClick('media')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'media' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>الميديا 🎥</button>
 
                     {/* زراير الإدمن */}
                     {isAdmin && (
