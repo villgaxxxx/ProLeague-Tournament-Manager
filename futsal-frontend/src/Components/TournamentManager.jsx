@@ -35,27 +35,32 @@ export default function TournamentManager() {
     // 🔥 دالة القرعة المدمجة (بدون شرط عدد اللاعبين)
 const handleDrawGroups = async () => {
     try {
-        // 1. نأخذ تأكيد الأدمن مباشرة
         const confirmDraw = window.confirm("هل أنت متأكد؟ سحب القرعة سيوزع الفرق عشوائياً ولن تتمكن من تغيير حجم المجموعة بعدها!");
         if (!confirmDraw) return;
 
-        // 2. إرسال طلب سحب القرعة للسيرفر
         const token = localStorage.getItem('adminToken');
         const res = await fetch('/api/Tournament/draw-groups', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        const data = await res.json();
+        
+        // 🛡️ حماية ضد إيرور الـ JSON لو السيرفر رجع صفحة فاضية أو 500
+        let data;
+        try {
+            data = await res.json();
+        } catch (e) {
+            data = { Message: "حدث خطأ 500 في السيرفر الداخلي. راجع سجلات الباك إند." };
+        }
         
         if (res.ok) {
             alert("تم سحب القرعة بنجاح! 🎲");
-            fetchSettingsAndGroups(); // تحديث الشاشة لعرض المجموعات
+            fetchSettingsAndGroups();
         } else {
             alert(data.message || data.Message);
         }
     } catch (error) {
         console.error("حدث خطأ أثناء عملية القرعة:", error);
-        alert("حدث خطأ أثناء الاتصال بالسيرفر، يرجى المحاولة مرة أخرى.");
+        alert("مشكلة في الاتصال بالسيرفر.");
     }
 };
 
