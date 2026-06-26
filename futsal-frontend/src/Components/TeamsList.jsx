@@ -27,6 +27,26 @@ export default function TeamsList() {
     };
 
     useEffect(() => {
+    const fetchTeams = async () => {
+        try {
+            // 💡 اتأكد إن ده نفس مسار الـ API بتاعك اللي بيجيب الفرق
+            const response = await fetch('/api/Teams'); 
+            const data = await response.json();
+            
+            // 🔥 هنا السحر: بنفك كمين الـ $values لو الباك إند بيستخدمه
+            const teamsList = Array.isArray(data) ? data : (data?.$values || []);
+            
+            // بنحفظ الداتا النضيفة في الـ State
+            setTeams(teamsList);
+        } catch (error) {
+            console.error("خطأ في جلب بيانات الفرق:", error);
+        }
+    };
+
+    fetchTeams();
+}, []); // الأقواس الفاضية دي معناها إن الكود هيشتغل مرة واحدة بس أول ما الصفحة تفتح
+
+    useEffect(() => {
         fetchTeams();
         
         // ⚙️ جلب إعدادات البطولة (أقصى لاعبين، وحجم المجموعة، وحالة القرعة)
@@ -181,6 +201,20 @@ export default function TeamsList() {
                                 className="w-16 p-1 border rounded text-center font-bold outline-none text-blue-900 bg-white"
                             />
                         </div>
+
+                        {/* 📊 شريط عرض إجمالي عدد الفرق */}
+<div className="bg-indigo-50 border border-indigo-200 p-4 rounded-xl shadow-sm mb-6 flex justify-between items-center max-w-4xl mx-auto" dir="rtl">
+    <div className="flex items-center gap-2">
+        <span className="text-2xl">📊</span>
+        <span className="font-black text-gray-700 text-base sm:text-lg">
+            إجمالي الفرق المسجلة في البطولة حالياً:
+        </span>
+    </div>
+    {/* هنا بنقرا طول المصفوفة مباشرة */}
+    <span className="bg-indigo-600 text-white font-black text-lg sm:text-xl px-5 py-1.5 rounded-full shadow-md animate-pulse">
+        {teams.length} فرق
+    </span>
+</div>
 
                         <div className="flex items-center gap-2 bg-blue-50 p-2 rounded-lg border border-blue-100">
                             <label className="text-sm font-bold text-gray-700">عدد الفرق بالمجموعة:</label>
