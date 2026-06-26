@@ -128,28 +128,6 @@ export default function TeamsList() {
         }
     };
 
-    const handleDeletePlayer = async (playerId, playerName) => {
-        const confirmDelete = window.confirm(`هل أنت متأكد من حذف اللاعب "${playerName}"؟ لا يمكن التراجع عن هذه الخطوة.`);
-        if (!confirmDelete) return;
-
-        const token = localStorage.getItem('adminToken');
-        try {
-            const response = await fetch(`/api/Players/${playerId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                alert("تم حذف اللاعب بنجاح! 🗑️");
-                fetchTeams(); 
-            } else {
-                alert("حدث خطأ أثناء حذف اللاعب.");
-            }
-        } catch (error) {
-            alert("مشكلة في الاتصال بالسيرفر.");
-        }
-    };
-
     const handleDeleteTeam = async (teamId, teamName) => {
         const confirmDelete = window.confirm(`⚠️ تحذير خطير جداً!\nهل أنت متأكد من حذف فريق "${teamName}" بالكامل؟\nهذا الإجراء سيمسح الفريق وجميع اللاعبين المسجلين فيه نهائياً!`);
         if (!confirmDelete) return;
@@ -328,15 +306,7 @@ export default function TeamsList() {
                                                             <span className="font-bold text-gray-800">{player.name || player.Name}</span>
                                                         </div>
                                                         
-                                                        {isAdmin && (
-                                                            <button 
-                                                                onClick={() => handleDeletePlayer(player.id || player.Id, player.name || player.Name)}
-                                                                className="text-red-500 hover:text-white hover:bg-red-500 border border-red-500 px-2 py-1 rounded text-xs font-bold transition"
-                                                                title="حذف اللاعب"
-                                                            >
-                                                                حذف 🗑️
-                                                            </button>
-                                                        )}
+                                                       
                                                     </div>
                                                 ))}
                                             </div>
