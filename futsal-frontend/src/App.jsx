@@ -74,7 +74,7 @@ function App() {
             
             {/* الهيدر العلوي وفيه زرار فتح القائمة */}
             <header className="bg-blue-800 text-white p-4 flex justify-between items-center shadow-md">
-                <h1 className="text-2xl font-black">بطولة الخماسي ⚽</h1>
+                <h1 className="text-2xl font-black">دوري الشوارع ⚽</h1>
                 <button 
                     onClick={() => setIsSidebarOpen(true)}
                     className="text-white hover:text-yellow-300 focus:outline-none transition"
