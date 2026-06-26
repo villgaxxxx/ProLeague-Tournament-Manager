@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 export default function AdminSchedule() {
     const [drafts, setDrafts] = useState([]);
     const isAdmin = !!localStorage.getItem('adminToken');
+    
 
     const fetchDrafts = () => {
         const token = localStorage.getItem('adminToken');
