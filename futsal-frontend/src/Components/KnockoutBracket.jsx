@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { toPng } from 'html-to-image';
 
-// 👇 1. طلعنا المكون هنا بره المكون الرئيسي، وضفنا teamMap كـ Prop
 const MatchNode = ({ match, isFinal, teamMap }) => {
     if (!match) {
         return (
-            <div className="h-16 w-48 bg-gray-50 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-400 text-xs font-bold shadow-sm">
+            <div className="h-16 w-40 sm:w-48 bg-gray-50 border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center text-gray-400 text-xs font-bold shadow-sm">
                 في الانتظار...
             </div>
         );
@@ -18,7 +17,6 @@ const MatchNode = ({ match, isFinal, teamMap }) => {
     const pen1 = match.team1PenaltiesScore ?? match.Team1PenaltiesScore;
     const pen2 = match.team2PenaltiesScore ?? match.Team2PenaltiesScore;
 
-    // بنقرأ الأسماء من الخريطة اللي اتبعتت في الـ Props
     const t1Id = match.team1Id || match.Team1Id;
     const t2Id = match.team2Id || match.Team2Id;
     const team1Name = teamMap[t1Id] || match.team1?.name || match.Team1?.Name || "فريق 1";
@@ -33,7 +31,7 @@ const MatchNode = ({ match, isFinal, teamMap }) => {
     }
 
     return (
-        <div className={`relative w-48 flex flex-col bg-white border rounded-md shadow-md overflow-hidden ${isFinal ? 'border-yellow-400 ring-2 ring-yellow-200 scale-110 z-10' : 'border-gray-300'} ${isPlaying ? 'animate-pulse border-red-500 ring-1 ring-red-300' : ''}`}>
+        <div className={`relative w-40 sm:w-48 flex flex-col bg-white border rounded-md shadow-md overflow-hidden ${isFinal ? 'border-yellow-400 ring-2 ring-yellow-200 scale-110 z-10' : 'border-gray-300'} ${isPlaying ? 'animate-pulse border-red-500 ring-1 ring-red-300' : ''}`}>
             {/* الفريق 1 */}
             <div className={`flex justify-between items-center px-2 py-1.5 border-b ${t1Won ? 'bg-green-50' : ''} ${isFinished && !t1Won ? 'text-gray-400 bg-gray-50' : 'text-gray-900'}`}>
                 <div className="flex items-center gap-2 overflow-hidden w-2/3">
@@ -74,22 +72,22 @@ export default function KnockoutBracket() {
             .then(teamsData => {
                 const list = Array.isArray(teamsData) ? teamsData : (teamsData?.$values || []);
                 const map = {};
-                list.forEach(t => {
-                    map[t.id || t.Id] = t.name || t.Name;
-                });
+                list.forEach(t => { map[t.id || t.Id] = t.name || t.Name; });
                 setTeamMap(map);
-
                 return fetch('/api/Matches');
             })
             .then(res => res.json())
             .then(data => {
                 const matchesData = Array.isArray(data) ? data : (data?.$values || []);
-                const knockouts = matchesData.filter(m => m.matchType !== "Group" && (m.isPublished === true || m.IsPublished === true));
+                const knockouts = matchesData.filter(m => {
+                    const type = m.matchType || m.MatchType;
+                    return type !== "Group" && (m.isPublished === true || m.IsPublished === true);
+                });
                 setKnockoutMatches(knockouts);
                 setLoading(false);
             })
             .catch(err => {
-                console.error("Error in bracket initialization:", err);
+                console.error("Error in bracket:", err);
                 setLoading(false);
             });
     }, []);
@@ -97,18 +95,12 @@ export default function KnockoutBracket() {
     const handleExportImage = async () => {
         if (!bracketRef.current) return;
         try {
-            const dataUrl = await toPng(bracketRef.current, { 
-                quality: 1, 
-                pixelRatio: 2, 
-                backgroundColor: "#ffffff" 
-            });
+            const dataUrl = await toPng(bracketRef.current, { quality: 1, pixelRatio: 2, backgroundColor: "#ffffff" });
             const link = document.createElement("a");
             link.download = "شجرة_البطولة_الرسمية.png";
             link.href = dataUrl;
             link.click();
-        } catch (error) {
-            console.error("Error exporting image:", error);
-        }
+        } catch (error) { console.error("Error exporting:", error); }
     };
 
     if (loading) return <div className="text-center mt-10 font-bold text-xl text-gray-700">جاري تحميل شجرة البطولة... ⏳</div>;
@@ -118,12 +110,13 @@ export default function KnockoutBracket() {
             <div className="max-w-4xl mx-auto mt-8 px-4" dir="rtl">
                 <h2 className="text-3xl font-black text-center mb-6 text-gray-800">الأدوار الإقصائية 🏆</h2>
                 <div className="bg-white p-8 rounded-xl shadow-md text-center border-t-4 border-red-500">
-                    <p className="font-bold text-gray-500 text-lg">لم تبدأ الأدوار الإقصائية بعد أو في انتظار قيام الإدمن بنشر المباريات من غرفة الجدولة! ⏳</p>
+                    <p className="font-bold text-gray-500 text-lg">لم تبدأ الأدوار الإقصائية بعد أو في انتظار قيام الإدمن بنشر المباريات! ⏳</p>
                 </div>
             </div>
         );
     }
 
+    // 🔥 التجميع بناءً على المسميات العربية الجديدة
     const groupedRounds = knockoutMatches.reduce((acc, match) => {
         const round = match.matchType || match.MatchType;
         if (!acc[round]) acc[round] = [];
@@ -131,10 +124,13 @@ export default function KnockoutBracket() {
         return acc;
     }, {});
 
-    const quarters = groupedRounds["QuarterFinal"] || [];
-    const semis = groupedRounds["SemiFinal"] || [];
-    const final = groupedRounds["Final"] || [];
-    const hasQuarters = quarters.length > 0 || semis.length > 0 || final.length > 0;
+    const r16 = groupedRounds["دور الـ 16"] || [];
+    const quarters = groupedRounds["ربع النهائي"] || [];
+    const semis = groupedRounds["نصف النهائي"] || [];
+    const final = groupedRounds["النهائي"] || [];
+
+    const hasR16 = r16.length > 0;
+    const hasQuarters = quarters.length > 0 || hasR16;
 
     return (
         <div className="max-w-full mx-auto mt-8 px-4 mb-16" dir="rtl">
@@ -146,19 +142,41 @@ export default function KnockoutBracket() {
             </div>
 
             <div className="overflow-x-auto pb-8 w-full">
-                <div ref={bracketRef} className="bg-slate-50 p-10 min-w-[1100px] flex justify-center items-center border border-gray-100 rounded-3xl" dir="ltr">
+                {/* توسيع العرض ديناميكياً إذا كان دور الـ 16 موجوداً */}
+                <div ref={bracketRef} className={`bg-slate-50 p-10 flex justify-center items-center border border-gray-100 rounded-3xl ${hasR16 ? 'min-w-[1500px]' : 'min-w-[1100px]'}`} dir="ltr">
                     <div className="flex justify-center items-stretch w-full relative gap-0">
                         
-                        {/* ربع النهائي يسار */}
+                        {/* ================== دور الـ 16 (يسار) ================== */}
+                        {hasR16 && (
+                            <div className="flex flex-col justify-around gap-6 z-10 py-2">
+                                <MatchNode match={r16[0]} teamMap={teamMap} />
+                                <MatchNode match={r16[1]} teamMap={teamMap} />
+                                <MatchNode match={r16[2]} teamMap={teamMap} />
+                                <MatchNode match={r16[3]} teamMap={teamMap} />
+                            </div>
+                        )}
+
+                        {hasR16 && (
+                            <div className="w-8 flex flex-col justify-around py-6 opacity-60">
+                                <div className="flex-1 flex flex-col mb-4">
+                                    <div className="flex-1 border-r-2 border-t-2 border-gray-400 rounded-tr-xl"></div>
+                                    <div className="flex-1 border-r-2 border-b-2 border-gray-400 rounded-br-xl"></div>
+                                </div>
+                                <div className="flex-1 flex flex-col mt-4">
+                                    <div className="flex-1 border-r-2 border-t-2 border-gray-400 rounded-tr-xl"></div>
+                                    <div className="flex-1 border-r-2 border-b-2 border-gray-400 rounded-br-xl"></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ================== ربع النهائي (يسار) ================== */}
                         {hasQuarters && (
                             <div className="flex flex-col justify-around gap-12 z-10 py-6">
-                                {/* 👇 2. بنبعت الـ teamMap للمكون */}
                                 <MatchNode match={quarters[0]} teamMap={teamMap} />
                                 <MatchNode match={quarters[1]} teamMap={teamMap} />
                             </div>
                         )}
 
-                        {/* خطوط ربع النهائي يسار */}
                         {hasQuarters && (
                             <div className="w-8 flex flex-col justify-around py-10 opacity-60">
                                 <div className="flex-1 border-r-2 border-t-2 border-gray-400 rounded-tr-xl mb-[-1px]"></div>
@@ -166,17 +184,16 @@ export default function KnockoutBracket() {
                             </div>
                         )}
 
-                        {/* نصف النهائي يسار */}
+                        {/* ================== نصف النهائي (يسار) ================== */}
                         <div className="flex flex-col justify-center z-10">
                             <MatchNode match={semis[0]} teamMap={teamMap} />
                         </div>
 
-                        {/* خط نصف النهائي يسار */}
                         <div className="w-12 flex flex-col justify-center opacity-60">
                             <div className="w-full border-b-2 border-gray-400"></div>
                         </div>
 
-                        {/* النهائي 🏆 */}
+                        {/* ================== النهائي 🏆 ================== */}
                         <div className="flex flex-col justify-center items-center px-4 z-20">
                             <div className="flex flex-col items-center mb-4">
                                 <span className="text-5xl drop-shadow-md">🏆</span>
@@ -185,17 +202,16 @@ export default function KnockoutBracket() {
                             <MatchNode match={final[0]} isFinal teamMap={teamMap} />
                         </div>
 
-                        {/* خط نصف النهائي يمين */}
+                        {/* ================== نصف النهائي (يمين) ================== */}
                         <div className="w-12 flex flex-col justify-center opacity-60">
                             <div className="w-full border-b-2 border-gray-400"></div>
                         </div>
 
-                        {/* نصف النهائي يمين */}
                         <div className="flex flex-col justify-center z-10">
                             <MatchNode match={semis[1]} teamMap={teamMap} />
                         </div>
 
-                        {/* خطوط ربع النهائي يمين */}
+                        {/* ================== ربع النهائي (يمين) ================== */}
                         {hasQuarters && (
                             <div className="w-8 flex flex-col justify-around py-10 opacity-60">
                                 <div className="flex-1 border-l-2 border-t-2 border-gray-400 rounded-tl-xl mb-[-1px]"></div>
@@ -203,14 +219,36 @@ export default function KnockoutBracket() {
                             </div>
                         )}
 
-                        {/* ربع النهائي يمين */}
                         {hasQuarters && (
                             <div className="flex flex-col justify-around gap-12 z-10 py-6">
                                 <MatchNode match={quarters[2]} teamMap={teamMap} />
                                 <MatchNode match={quarters[3]} teamMap={teamMap} />
                             </div>
                         )}
-                        
+
+                        {/* ================== دور الـ 16 (يمين) ================== */}
+                        {hasR16 && (
+                            <div className="w-8 flex flex-col justify-around py-6 opacity-60">
+                                <div className="flex-1 flex flex-col mb-4">
+                                    <div className="flex-1 border-l-2 border-t-2 border-gray-400 rounded-tl-xl"></div>
+                                    <div className="flex-1 border-l-2 border-b-2 border-gray-400 rounded-bl-xl"></div>
+                                </div>
+                                <div className="flex-1 flex flex-col mt-4">
+                                    <div className="flex-1 border-l-2 border-t-2 border-gray-400 rounded-tl-xl"></div>
+                                    <div className="flex-1 border-l-2 border-b-2 border-gray-400 rounded-bl-xl"></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {hasR16 && (
+                            <div className="flex flex-col justify-around gap-6 z-10 py-2">
+                                <MatchNode match={r16[4]} teamMap={teamMap} />
+                                <MatchNode match={r16[5]} teamMap={teamMap} />
+                                <MatchNode match={r16[6]} teamMap={teamMap} />
+                                <MatchNode match={r16[7]} teamMap={teamMap} />
+                            </div>
+                        )}
+
                     </div>
                 </div>
             </div>

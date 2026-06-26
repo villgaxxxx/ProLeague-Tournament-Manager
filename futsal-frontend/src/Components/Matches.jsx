@@ -182,20 +182,21 @@ const handleDeleteMatch = async (matchId) => {
     const activeMatches = matches.filter(m => !(m.isFinished === true || m.IsFinished === true));
 
     const matchesByRound = activeMatches.reduce((acc, match) => {
-        const type = match.matchType || match.MatchType;
-        let roundKey = "";
+    const type = match.matchType || match.MatchType;
+    let roundKey = "";
 
-        if (type !== "Group" && type !== undefined) {
-            roundKey = "الأدوار الإقصائية 🏆";
-        } else {
-            const round = match.roundNumber ?? match.RoundNumber ?? 1;
-            roundKey = `الجولة ${round}`;
-        }
+    if (type !== "Group" && type !== undefined) {
+        // 🔥 هنا السحر: هناخد الاسم الحقيقي من الداتا بيز ونحط جنبه الكأس
+        roundKey = `${type} 🏆`; 
+    } else {
+        const round = match.roundNumber ?? match.RoundNumber ?? 1;
+        roundKey = `الجولة ${round}`;
+    }
 
-        if (!acc[roundKey]) acc[roundKey] = [];
-        acc[roundKey].push(match);
-        return acc;
-    }, {});
+    if (!acc[roundKey]) acc[roundKey] = [];
+    acc[roundKey].push(match);
+    return acc;
+}, {});
 
     const handleDownloadRoundImage = async (roundKey) => {
         const elementId = `capture-${roundKey.replace(/\s+/g, '-')}`;

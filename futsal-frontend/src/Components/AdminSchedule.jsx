@@ -42,40 +42,54 @@ export default function AdminSchedule() {
     // 3. دالة ترحيل جولة محددة (الجديدة 🚀)
     // 3. دالة ترحيل جولة محددة
     const handlePublishRound = async (roundKey) => {
-        // 🔥 الحل هنا: لو الجولة "غير محدد"، هنبعت للسيرفر رقم 0 عشان ميضربش إيرور
-        const roundNumberToSend = roundKey === "غير محدد" ? 0 : parseInt(roundKey);
+    // 🔥 التعديل هنا: بنشيل parseInt تماماً لأن الباك إند بقا بيستقبل نص أو رقم
+    // بنعمل encodeURIComponent عشان لو الاسم عربي وفيه مسافات (زي "ربع النهائي") يتبعت في الـ URL صح
+    const roundIdentifier = roundKey === "غير محدد" ? "0" : encodeURIComponent(roundKey);
 
-        const confirm = window.confirm(`هل أنت متأكد من ترحيل ونشر مباريات ${roundKey === "غير محدد" ? "هذه الجولة" : `الجولة ${roundKey}`} للجمهور؟`);
-        if (!confirm) return;
+    // تغيير نص التأكيد ذكياً بناءً على نوع الدور
+    const confirm = window.confirm(`هل أنت متأكد من ترحيل ونشر مباريات ${!isNaN(roundKey) ? `الجولة ${roundKey}` : roundKey} للجمهور؟`);
+    if (!confirm) return;
 
-        const token = localStorage.getItem('adminToken');
-        try {
-            const res = await fetch(`/api/Tournament/publish-round/${roundNumberToSend}`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            
-            if (res.ok) {
-                alert(`تم النشر بنجاح! 🚀`);
-                fetchDrafts(); // الماتشات المترحلة هتختفي من صفحة المسودة
-            } else {
-                alert(data.message || data.Message);
-            }
-        } catch (error) {
-            alert("مشكلة في الاتصال بالسيرفر.");
+    const token = localStorage.getItem('adminToken');
+    try {
+        // 🚀 بنبعت المعرّف الجديد (رقم أو نص متشفر)
+        const res = await fetch(`/api/Tournament/publish-round/${roundIdentifier}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            alert(`تم النشر بنجاح! 🚀`);
+            fetchDrafts(); // إعادة جلب البيانات لتحديث الشاشة
+        } else {
+            alert(data.message || data.Message);
         }
-    };
+    } catch (error) {
+        alert("مشكلة في الاتصال بالسيرفر.");
+    }
+};
 
     if (!isAdmin) return null;
 
     // 🔥 تجميع المباريات في كائن (Object) بناءً على رقم الجولة
     const matchesByRound = drafts.reduce((acc, match) => {
-        const roundKey = match.roundNumber || match.RoundNumber || "غير محدد";
-        if (!acc[roundKey]) acc[roundKey] = [];
-        acc[roundKey].push(match);
-        return acc;
-    }, {});
+    const matchType = match.matchType || match.MatchType;
+    let roundKey;
+
+    // لو الماتش في المجموعات، هات رقم الجولة
+    if (matchType === "Group") {
+        const roundVal = match.roundNumber ?? match.RoundNumber;
+        roundKey = (roundVal && roundVal !== 0) ? roundVal : "غير محدد";
+    } else {
+        // لو الماتش في الإقصائيات، هات اسمه (زي "ربع النهائي")
+        roundKey = matchType; 
+    }
+    
+    if (!acc[roundKey]) acc[roundKey] = [];
+    acc[roundKey].push(match);
+    return acc;
+}, {});
 
     return (
         <div className="max-w-4xl mx-auto mt-8 px-4 pb-12" dir="rtl">
