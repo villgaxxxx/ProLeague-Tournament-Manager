@@ -8,6 +8,8 @@ export default function Matches({ setActiveTab }) {
     const [postponingMatchId, setPostponingMatchId] = useState(null);
     const [postponeReason, setPostponeReason] = useState("");
     const [newMatchDate, setNewMatchDate] = useState("");
+    const [secondsElapsed, setSecondsElapsed] = useState(0); // العداد بالثواني
+    const [isTimerRunning, setIsTimerRunning] = useState(false);
 
     const fetchMatches = useCallback(() => {
         fetch('/api/Matches')
@@ -29,6 +31,18 @@ export default function Matches({ setActiveTab }) {
         // 3. تنظيف العداد لما اليوزر يخرج من الصفحة
         return () => clearInterval(pollingInterval);
     }, [fetchMatches]);
+
+    useEffect(() => {
+    let interval;
+    if (isTimerRunning) {
+        interval = setInterval(() => {
+            setSecondsElapsed(prev => prev + 1);
+        }, 1000);
+    } else {
+        clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+}, [isTimerRunning]);
 
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');
@@ -112,12 +126,19 @@ const handleDeleteMatch = async (matchId) => {
 };
 
     const actionPlayer = async (matchId, playerId, action) => {
-        const token = localStorage.getItem('adminToken');
-        await fetch(`/api/Matches/${matchId}/${action}/${playerId}`, {
-            method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
-        });
-        fetchMatches();
-    };
+    const token = localStorage.getItem('adminToken');
+    
+    // حساب الدقيقة الحالية من العداد (لو الثواني 65، يبقى إحنا في الدقيقة 2)
+    const currentMinute = Math.floor(secondsElapsed / 60) + 1;
+
+    // بعتنا الدقيقة للسيرفر في الرابط عشان تتسجل في التايم لاين
+    await fetch(`/api/Matches/${matchId}/${action}/${playerId}?minute=${currentMinute}`, {
+        method: 'PUT', 
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    fetchMatches();
+};
 
     const handleFinishMatch = async (id) => {
         const match = matches.find(m => m.id === id || m.Id === id);
@@ -579,142 +600,142 @@ const handleDeleteMatch = async (matchId) => {
                                                     )}
 
                                                     {isAdmin && match.isPlaying && (
-                                                        <div className="mt-6 w-full border-t border-gray-100 pt-6 hide-in-screenshot">
-                                                            <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4">سجل الأهداف والكروت 👇</h4>
-                                                            <div className="flex flex-col md:flex-row gap-4 w-full">
-                                                                
-                                                                {/* ==================== الفريق الأول ==================== */}
-<div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
-    {t1Players.map(player => {
-        const matchScorersString = match.team1Scorers || match.Team1Scorers || "";
-        const playerName = player.name || player.Name;
-        const playerId = player.id || player.Id;
-        const goalsThisMatch = matchScorersString.split(',').filter(name => name === playerName).length;
-
-        return (
-            <div key={playerId} className="flex flex-col xl:flex-row items-center justify-between p-2 rounded-lg shadow-sm border bg-white gap-3">
+    <div className="mt-6 w-full border-t border-gray-100 pt-6 hide-in-screenshot">
+        
+        {/* ========================================================= */}
+        {/* ⏱️ لوحة تحكم وقت المباراة والتايم لاين (للإدمن فقط) ⏱️ */}
+        <div className="bg-gray-900 text-white p-4 sm:p-6 rounded-xl shadow-lg mb-8 border-t-4 border-yellow-500 w-full">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                 
-                {/* اسم اللاعب والأهداف المسجلة */}
-                <span className="font-bold text-sm text-gray-800 flex-1 flex items-center flex-wrap gap-1 w-full">
-                    <span>{playerName}</span>
-                    {goalsThisMatch > 0 && (
-                        <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
-                            {goalsThisMatch} ⚽
-                        </span>
-                    )}
-                </span>
-
-                {/* 🎛️ زراير تحكم الإدمن (مربوطة بدالة actionPlayer بتاعتك) 🎛️ */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <button 
-                        onClick={() => actionPlayer(match.id || match.Id, playerId, 'player-goal')}
-                        className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1"
-                        title="تسجيل هدف"
-                    >
-                        <span>⚽</span> جول
-                    </button>
-                    
-                    <button 
-                        onClick={() => actionPlayer(match.id || match.Id, playerId, 'remove-goal')}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1"
-                        title="إلغاء هدف"
-                    >
-                        <span>❌</span> إلغاء
-                    </button>
-
-                    <button 
-                        onClick={() => actionPlayer(match.id || match.Id, playerId, 'yellow-card')}
-                        className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1"
-                        title="إنذار"
-                    >
-                        <span>🟨</span> إنذار
-                    </button>
-
-                    <button 
-                        onClick={() => actionPlayer(match.id || match.Id, playerId, 'red-card')}
-                        className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1"
-                        title="طرد"
-                    >
-                        <span>🟥</span> طرد
-                    </button>
+                {/* إعدادات الوقت والعداد */}
+                <div className="flex items-center gap-4 shrink-0">
+                    <div className="bg-black px-4 py-2 sm:px-6 sm:py-3 rounded-lg font-mono text-2xl sm:text-4xl font-black tracking-widest text-yellow-400 shadow-inner">
+                        {Math.floor(secondsElapsed / 60).toString().padStart(2, '0')}:
+                        {(secondsElapsed % 60).toString().padStart(2, '0')}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        <button 
+                            onClick={() => setIsTimerRunning(!isTimerRunning)} 
+                            className={`px-4 py-2 rounded text-sm sm:text-base font-bold transition shadow-md ${isTimerRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                        >
+                            {isTimerRunning ? '⏸️ إيقاف مؤقت' : '▶️ استئناف'}
+                        </button>
+                    </div>
                 </div>
-                
-            </div>
-        );
-    })}
-</div>
 
-
-
-{/* ==================== الفريق الثاني ==================== */}
-<div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
-    {t2Players.map(player => {
-        const matchScorersString = match.team2Scorers || match.Team2Scorers || "";
-        const playerName = player.name || player.Name;
-        const playerId = player.id || player.Id;
-        const goalsThisMatch = matchScorersString.split(',').filter(name => name === playerName).length;
-
-        return (
-            <div key={playerId} className="flex flex-col xl:flex-row items-center justify-between p-2 rounded-lg shadow-sm border bg-white gap-3">
-                
-                {/* اسم اللاعب والأهداف المسجلة */}
-                <span className="font-bold text-sm text-gray-800 flex-1 flex items-center flex-wrap gap-1 w-full">
-                    <span>{playerName}</span>
-                    {goalsThisMatch > 0 && (
-                        <span className="text-green-700 font-black text-[10px] sm:text-xs mx-0.5 bg-green-100 px-1.5 py-0.5 rounded border border-green-300 shadow-sm">
-                            {goalsThisMatch} ⚽
-                        </span>
-                    )}
-                </span>
-
-                {/* 🎛️ زراير تحكم الإدمن (مربوطة بدالة actionPlayer بتاعتك) 🎛️ */}
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <button 
-                        onClick={() => actionPlayer(match.id || match.Id, playerId, 'player-goal')}
-                        className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1"
-                        title="تسجيل هدف"
-                    >
-                        <span>⚽</span> جول
-                    </button>
-                    
-                    <button 
-                        onClick={() => actionPlayer(match.id || match.Id, playerId, 'remove-goal')}
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1"
-                        title="إلغاء هدف"
-                    >
-                        <span>❌</span> إلغاء
-                    </button>
-
-                    <button 
-                        onClick={() => actionPlayer(match.id || match.Id, playerId, 'yellow-card')}
-                        className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1"
-                        title="إنذار"
-                    >
-                        <span>🟨</span> إنذار
-                    </button>
-
-                    <button 
-                        onClick={() => actionPlayer(match.id || match.Id, playerId, 'red-card')}
-                        className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1"
-                        title="طرد"
-                    >
-                        <span>🟥</span> طرد
-                    </button>
+                {/* 📜 التايم لاين (شريط الأحداث) */}
+                <div className="flex-1 w-full bg-gray-800 rounded-lg p-3 overflow-x-auto whitespace-nowrap border border-gray-700 shadow-inner min-h-[80px]">
+                    <p className="text-xs text-gray-400 font-bold mb-2">📜 أحداث المباراة (التايم لاين):</p>
+                    <div className="flex gap-3">
+                        {(!match.matchEvents || match.matchEvents.length === 0) && (
+                            <span className="text-gray-500 text-sm italic">لم يتم تسجيل أحداث بعد... ⏱️</span>
+                        )}
+                        
+                        {/* ترتيب الأحداث حسب الدقيقة وعرضها */}
+                        {match.matchEvents?.sort((a, b) => a.minute - b.minute).map((event, idx) => {
+                            const icon = event.eventType === 'player-goal' ? '⚽' : event.eventType === 'yellow-card' ? '🟨' : '🟥';
+                            // جلب اسم اللاعب من القائمتين
+                            const player = [...(t1Players || []), ...(t2Players || [])].find(p => p.id === event.playerId || p.Id === event.playerId);
+                            
+                            return (
+                                <div key={idx} className="bg-gray-700 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border border-gray-600 shadow-sm">
+                                    <span className="text-yellow-400 font-black">{event.minute}'</span>
+                                    <span>{icon}</span>
+                                    <span className="font-bold">{player?.name || player?.Name || 'لاعب'}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-                
             </div>
-        );
-    })}
-</div>
+        </div>
+        {/* ========================================================= */}
 
-                                                                
 
-                                                            </div>
-                                                            <button onClick={() => handleFinishMatch(match.id || match.Id)} className="w-64 mx-auto block bg-red-600 text-white px-8 py-3 rounded-xl font-black hover:bg-red-700 transition shadow-lg mt-6">
-                                                                صافرة النهاية 🛑
-                                                            </button>
-                                                        </div>
-                                                    )}
+        <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4">سجل الأهداف والكروت 👇</h4>
+        <div className="flex flex-col md:flex-row gap-4 w-full">
+            
+            {/* ==================== الفريق الأول ==================== */}
+            <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
+                {t1Players.map(player => {
+                    const playerId = player.id || player.Id;
+                    const playerName = player.name || player.Name;
+                    
+                    // 🔥 حساب الإحصائيات في الماتش ده فقط من التايم لاين
+                    const playerEvents = match.matchEvents?.filter(e => e.playerId === playerId) || [];
+                    const goalsThisMatch = playerEvents.filter(e => e.eventType === 'player-goal').length;
+                    const yellowsThisMatch = playerEvents.filter(e => e.eventType === 'yellow-card').length;
+                    const redsThisMatch = playerEvents.filter(e => e.eventType === 'red-card').length;
+
+                    return (
+                        <div key={playerId} className={`flex flex-col xl:flex-row items-center justify-between p-2 rounded-lg shadow-sm border gap-3 ${redsThisMatch > 0 ? 'bg-red-50 border-red-300' : 'bg-white'}`}>
+                            
+                            {/* اسم اللاعب والأهداف/الكروت */}
+                            <span className="font-bold text-sm text-gray-800 flex-1 flex items-center flex-wrap gap-1.5 w-full">
+                                <span>{playerName}</span>
+                                {goalsThisMatch > 0 && <span className="text-green-700 font-black text-xs bg-green-100 px-1.5 py-0.5 rounded border border-green-300">{goalsThisMatch} ⚽</span>}
+                                {yellowsThisMatch > 0 && <span className="text-yellow-700 font-black text-xs bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300">{yellowsThisMatch} 🟨</span>}
+                                {redsThisMatch > 0 && <span className="text-red-700 font-black text-xs bg-red-100 px-1.5 py-0.5 rounded border border-red-300">طرد 🟥</span>}
+                            </span>
+
+                            {/* 🎛️ زراير تحكم الإدمن */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <button onClick={() => actionPlayer(match.id || match.Id, playerId, 'player-goal')} className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1">⚽ جول</button>
+                                <button onClick={() => actionPlayer(match.id || match.Id, playerId, 'remove-goal')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1">❌ إلغاء</button>
+                                <button onClick={() => actionPlayer(match.id || match.Id, playerId, 'yellow-card')} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1">🟨 إنذار</button>
+                                <button onClick={() => actionPlayer(match.id || match.Id, playerId, 'red-card')} className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1">🟥 طرد</button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* ==================== الفريق الثاني ==================== */}
+            <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
+                {t2Players.map(player => {
+                    const playerId = player.id || player.Id;
+                    const playerName = player.name || player.Name;
+                    
+                    // 🔥 حساب الإحصائيات في الماتش ده فقط من التايم لاين
+                    const playerEvents = match.matchEvents?.filter(e => e.playerId === playerId) || [];
+                    const goalsThisMatch = playerEvents.filter(e => e.eventType === 'player-goal').length;
+                    const yellowsThisMatch = playerEvents.filter(e => e.eventType === 'yellow-card').length;
+                    const redsThisMatch = playerEvents.filter(e => e.eventType === 'red-card').length;
+
+                    return (
+                        <div key={playerId} className={`flex flex-col xl:flex-row items-center justify-between p-2 rounded-lg shadow-sm border gap-3 ${redsThisMatch > 0 ? 'bg-red-50 border-red-300' : 'bg-white'}`}>
+                            
+                            {/* اسم اللاعب والأهداف/الكروت */}
+                            <span className="font-bold text-sm text-gray-800 flex-1 flex items-center flex-wrap gap-1.5 w-full">
+                                <span>{playerName}</span>
+                                {goalsThisMatch > 0 && <span className="text-green-700 font-black text-xs bg-green-100 px-1.5 py-0.5 rounded border border-green-300">{goalsThisMatch} ⚽</span>}
+                                {yellowsThisMatch > 0 && <span className="text-yellow-700 font-black text-xs bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300">{yellowsThisMatch} 🟨</span>}
+                                {redsThisMatch > 0 && <span className="text-red-700 font-black text-xs bg-red-100 px-1.5 py-0.5 rounded border border-red-300">طرد 🟥</span>}
+                            </span>
+
+                            {/* 🎛️ زراير تحكم الإدمن */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <button onClick={() => actionPlayer(match.id || match.Id, playerId, 'player-goal')} className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1">⚽ جول</button>
+                                <button onClick={() => actionPlayer(match.id || match.Id, playerId, 'remove-goal')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1">❌ إلغاء</button>
+                                <button onClick={() => actionPlayer(match.id || match.Id, playerId, 'yellow-card')} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1">🟨 إنذار</button>
+                                <button onClick={() => actionPlayer(match.id || match.Id, playerId, 'red-card')} className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 px-2 py-1 rounded shadow-sm text-xs font-bold transition flex items-center gap-1">🟥 طرد</button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+        </div>
+
+        {/* صافرة النهاية */}
+        <button onClick={() => {
+            setIsTimerRunning(false); // وقف العداد لما الماتش يخلص
+            handleFinishMatch(match.id || match.Id);
+        }} className="w-64 mx-auto block bg-red-600 text-white px-8 py-3 rounded-xl font-black hover:bg-red-700 transition shadow-lg mt-6">
+            صافرة النهاية 🛑
+        </button>
+    </div>
+)}
                                                 </div>
                                             );
                                         }
