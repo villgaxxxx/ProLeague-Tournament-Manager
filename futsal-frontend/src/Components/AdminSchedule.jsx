@@ -95,21 +95,27 @@ export default function AdminSchedule() {
                             <div key={roundKey} className="bg-white rounded-xl shadow border border-indigo-100 overflow-hidden">
                                 
                                 {/* 🏆 شريط عنوان الجولة وزرار الترحيل */}
-                                <div className="bg-indigo-900 text-white px-5 py-4 flex flex-wrap justify-between items-center gap-3">
-                                    <h3 className="font-black text-lg flex items-center gap-2">
-                                        ⚽ الجولة {roundKey !== "غير محدد" ? `رقم ${roundKey}` : "غير المحددة"}
-                                        <span className="text-xs bg-indigo-700 text-yellow-300 px-2 py-1 rounded font-bold">
-                                            {roundMatches.length} مباريات
-                                        </span>
-                                    </h3>
-                                    
-                                    <button
-                                        onClick={() => handlePublishRound(roundKey)}
-                                        className="bg-green-500 hover:bg-green-600 text-white text-sm font-black px-5 py-2 rounded-lg transition shadow-md flex items-center gap-2"
-                                    >
-                                        🚀 ترحيل هذه الجولة للجمهور
-                                    </button>
-                                </div>
+<div className="bg-indigo-900 text-white px-5 py-4 flex flex-wrap justify-between items-center gap-3">
+    <h3 className="font-black text-lg flex items-center gap-2">
+        {/* 👇 التعديل الذكي لعرض العنوان 👇 */}
+        {!isNaN(roundKey) 
+            ? `⚽ الجولة ${roundKey !== "غير محدد" ? `رقم ${roundKey}` : "غير المحددة"}` 
+            : `🏆 ${roundKey}`
+        }
+        
+        <span className="text-xs bg-indigo-700 text-yellow-300 px-2 py-1 rounded font-bold">
+            {roundMatches.length} مباريات
+        </span>
+    </h3>
+    
+    <button
+        onClick={() => handlePublishRound(roundKey)}
+        className="bg-green-500 hover:bg-green-600 text-white text-sm font-black px-5 py-2 rounded-lg transition shadow-md flex items-center gap-2"
+    >
+        {/* زرار الترحيل برضه بيتغير بناءً على الجولة أو الدور */}
+        🚀 ترحيل {!isNaN(roundKey) ? "هذه الجولة" : "هذا الدور"} للجمهور
+    </button>
+</div>
 
                                 {/* 📋 لستة الماتشات الخاصة بالجولة دي بس */}
                                 <div className="p-5 grid gap-4">

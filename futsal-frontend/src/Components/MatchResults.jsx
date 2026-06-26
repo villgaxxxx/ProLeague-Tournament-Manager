@@ -149,10 +149,11 @@ export default function MatchResults() {
                                 
                                 {/* عنوان الجولة */}
                                 <div className="flex items-center justify-center mb-8">
-                                    <h3 className="text-2xl font-black bg-green-900 text-white px-10 py-3 rounded-full shadow-lg border-4 border-green-100">
-                                        {roundKey}
-                                    </h3>
-                                </div>
+    <h3 className="text-2xl font-black bg-blue-950 text-white px-10 py-3 rounded-full shadow-lg border-4 border-blue-100 flex items-center gap-2">
+        {/* لو الجولة عبارة عن رقم هيحط قبلها كلمة الجولة، ولو نص (زي ربع النهائي) هيعرضه زي ما هو */}
+        {!isNaN(roundKey) ? `⚽ الجولة رقم ${roundKey}` : `🏆 ${roundKey}`}
+    </h3>
+</div>
 
                                 <div className="grid gap-6">
                                     {matchesByRound[roundKey].map(match => {
