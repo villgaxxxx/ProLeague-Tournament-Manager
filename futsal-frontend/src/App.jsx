@@ -15,6 +15,7 @@ import AdminSchedule from './Components/AdminSchedule';
 import KnockoutBracket from './Components/KnockoutBracket';
 import TeamsSummary from "./Components/TeamsSummary";
 import MediaHub from './Components/MediaHub';
+import TournamentStats from '.Components/TournamentStats'; // تأكد من مسار الملف الصح
 
 function App() {
     const [activeTab, setActiveTab] = useState('standings');
@@ -116,6 +117,8 @@ function App() {
                     <button onClick={() => handleTabClick('topScorers')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'topScorers' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>الهدافين 🏅</button>
                     <button onClick={() => handleTabClick('notifications')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'notifications' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>الإعلانات والإيقافات 📢</button>
                     <button onClick={() => handleTabClick('media')} className={`text-right px-4 py-3 rounded font-bold transition ${activeTab === 'media' ? 'bg-blue-700 text-yellow-300' : 'hover:bg-blue-800'}`}>الميديا 🎥</button>
+                    <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 font-bold rounded-lg transition-transform ${activeTab === 'stats' ? 'bg-indigo-600 text-white scale-105 shadow-md' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>إحصائيات البطولة 📊</button>
+
                     {/* زراير الإدمن */}
                     {isAdmin && (
                         <>
@@ -167,6 +170,7 @@ function App() {
                 {activeTab === 'adminSch' && <AdminSchedule />}
                 {activeTab === 'knockouts' && <KnockoutBracket />}
                 {activeTab === 'teams-summary' && <TeamsSummary />}
+                {activeTab === 'stats' && <TournamentStats />}
             </div>
 
             {/* Copyright Footer */}
