@@ -15,7 +15,7 @@ import AdminSchedule from './Components/AdminSchedule';
 import KnockoutBracket from './Components/KnockoutBracket';
 import TeamsSummary from "./Components/TeamsSummary";
 import MediaHub from './Components/MediaHub';
-import TournamentStats from '.Components/TournamentStats'; // تأكد من مسار الملف الصح
+import TournamentStats from './Components/TournamentStats'; // تأكد من مسار الملف الصح
 
 function App() {
     const [activeTab, setActiveTab] = useState('standings');
