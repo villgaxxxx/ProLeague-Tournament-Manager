@@ -508,15 +508,22 @@ const toggleMatchTimer = (matchId, forceState = null) => {
     </div>
 
     {/* 👇 الجزء الخاص بالنتيجة أو علامة VS 👇 */}
-    <div className="shrink-0 mx-2 flex justify-center">
-        {match.isPlaying ? (
-            <div className="flex items-center gap-2 sm:gap-3 bg-red-600 text-white px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-xl sm:text-3xl font-black shadow-md animate-pulse">
+<div className="shrink-0 mx-2 flex justify-center">
+    {match.isPlaying ? (
+        <div className="flex flex-col items-center gap-1.5">
+            {/* النتيجة */}
+            <div className="flex items-center gap-2 sm:gap-3 bg-red-600 text-white px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-xl sm:text-3xl font-black shadow-md">
                 <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
             </div>
-        ) : (
-            <span className="text-gray-400 font-black text-sm sm:text-xl bg-gray-200 px-3 py-1 rounded-lg">VS</span>
-        )}
-    </div>
+            {/* ⏱️ التايمر اللايف الأحمر (ده اللي كان مختفي) */}
+            <div className="bg-red-700 text-white px-3 py-0.5 rounded font-mono text-sm sm:text-lg font-black shadow-md animate-pulse border border-red-900 w-full text-center">
+                ⏱️ {formatTime(matchTimers[match.id || match.Id]?.elapsed)}
+            </div>
+        </div>
+    ) : (
+        <span className="text-gray-400 font-black text-sm sm:text-xl bg-gray-200 px-3 py-1 rounded-lg">VS</span>
+    )}
+</div>
 
     {/* 👇 الجزء الخاص بالفريق الثاني 👇 */}
     <div className="flex flex-col items-center flex-1">
@@ -657,32 +664,33 @@ const toggleMatchTimer = (matchId, forceState = null) => {
                 </div>
             </div>
 
-            {/* 📜 التايم لاين (شريط الأحداث العمودي) */}
-            {/* لاحظ خلينا الـ overflow-y-auto وحددنا الطول بـ max-h-[180px] عشان السكرول */}
-            <div className="flex-1 w-full bg-gray-800 rounded-lg p-3 border border-gray-700 shadow-inner max-h-[180px] overflow-y-auto custom-scrollbar">
-                <p className="text-xs text-gray-400 font-bold mb-2 sticky top-0 bg-gray-800 z-10 pb-2 border-b border-gray-700">📜 مجريات المباراة:</p>
-                <div className="flex flex-col gap-2 mt-2">
-                    {(!match.matchEvents || match.matchEvents.length === 0) ? (
-                        <span className="text-gray-500 text-sm italic text-center block mt-4">لم يتم تسجيل أحداث بعد... ⏱️</span>
-                    ) : (
-                        /* رتبنا الأحداث من الأحدث للأقدم b.minute - a.minute */
-                        match.matchEvents?.sort((a, b) => b.minute - a.minute).map((event, idx) => {
-                            const icon = event.eventType === 'player-goal' ? '⚽' : event.eventType === 'yellow-card' ? '🟨' : '🟥';
-                            const player = [...(t1Players || []), ...(t2Players || [])].find(p => p.id === event.playerId || p.Id === event.playerId);
-                            
-                            return (
-                                <div key={idx} className="bg-gray-700 px-3 py-2 rounded-md flex items-center justify-between text-sm border border-gray-600 shadow-sm">
-                                    <div className="flex items-center gap-2">
-                                        <span>{icon}</span>
-                                        <span className="font-bold text-white">{player?.name || player?.Name || 'لاعب'}</span>
-                                    </div>
-                                    <span className="text-yellow-400 font-black bg-gray-800 px-2 py-0.5 rounded text-xs">{event.minute}'</span>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-            </div>
+           {/* 📜 التايم لاين (عمودي + Scrollbar) */}
+<div className="flex-1 w-full bg-gray-800 rounded-lg p-3 border border-gray-700 shadow-inner max-h-[180px] overflow-y-auto custom-scrollbar">
+    <p className="text-xs text-gray-400 font-bold mb-2 sticky top-0 bg-gray-800 z-10 pb-2 border-b border-gray-700">📜 مجريات المباراة:</p>
+    
+    {/* 🔥 السر هنا في كلمة flex-col عشان تجيبه بالطول 🔥 */}
+    <div className="flex flex-col gap-2 mt-2">
+        {(!match.matchEvents || match.matchEvents.length === 0) ? (
+            <span className="text-gray-500 text-sm italic text-center block mt-4">لم يتم تسجيل أحداث بعد... ⏱️</span>
+        ) : (
+            match.matchEvents?.sort((a, b) => b.minute - a.minute).map((event, idx) => {
+                const icon = event.eventType === 'player-goal' ? '⚽' : event.eventType === 'yellow-card' ? '🟨' : '🟥';
+                const player = [...(t1Players || []), ...(t2Players || [])].find(p => p.id === event.playerId || p.Id === event.playerId);
+                
+                return (
+                    <div key={idx} className="bg-gray-700 px-3 py-2 rounded-md flex items-center justify-between text-sm border border-gray-600 shadow-sm">
+                        <div className="flex items-center gap-2">
+                            <span>{icon}</span>
+                            <span className="font-bold text-white">{player?.name || player?.Name || 'لاعب'}</span>
+                        </div>
+                        <span className="text-yellow-400 font-black bg-gray-800 px-2 py-0.5 rounded text-xs">{event.minute}'</span>
+                    </div>
+                );
+            })
+        )}
+    </div>
+</div>
+
         </div>
         {/* ========================================================= */}
 
