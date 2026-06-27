@@ -49,7 +49,7 @@ export default function Matches({ setActiveTab }) {
         // ده اللي بيرجع اللايف للجمهور من غير ريفريش
         const pollInterval = setInterval(() => {
             fetchMatches();
-        }, 3000);
+        }, 1500);
 
         return () => clearInterval(pollInterval);
     }, [fetchMatches]);
