@@ -15,7 +15,7 @@ export default function Matches({ setActiveTab }) {
     
     const isFetching = useRef(false);
 
-    // دالة الجلب المجهزة لاستقبال StartTime من الباك إند
+    // دالة الجلب مع حل مشكلة التوقيت الـ 180 دقيقة
     const fetchMatches = useCallback(async () => {
         if (isFetching.current) return;
         isFetching.current = true;
@@ -34,18 +34,17 @@ export default function Matches({ setActiveTab }) {
                     const mId = m.id || m.Id;
                     if (m.isPlaying || m.IsPlaying) {
                         
-                        // 🔥 الاستعداد لـ StartTime اللي هنعمله في الباك إند 🔥
                         const startTime = m.startTime || m.StartTime;
                         let elapsed = newTimers[mId]?.elapsed || 0;
                         
-                        // لو الباك إند باعت وقت البداية، نحسب الفرق بالثواني عشان الريفريش
                         if (startTime) {
-                            elapsed = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
+                            // 🔥 الحل السحري لمشكلة الـ 180 دقيقة (إجبار البراوزر يقراها توقيت عالمي) 🔥
+                            const utcTime = startTime.endsWith('Z') ? startTime : `${startTime}Z`;
+                            elapsed = Math.floor((Date.now() - new Date(utcTime).getTime()) / 1000);
+                            if (elapsed < 0) elapsed = 0; // أمان إضافي عشان لو الوقت سالب
                         }
 
-                        // لو الإدمن عامل إيقاف مؤقت، الريفريش ميشغلوش غصب عنه
                         const isRunning = newTimers[mId] !== undefined ? newTimers[mId].isRunning : true;
-
                         newTimers[mId] = { elapsed, isRunning };
                     }
                 });
@@ -58,14 +57,12 @@ export default function Matches({ setActiveTab }) {
         }
     }, []);
 
-    // التحديث التلقائي بدون ما يبوظ الـ Pause
     useEffect(() => {
         fetchMatches(); 
         const pollInterval = setInterval(() => fetchMatches(), 5000);
         return () => clearInterval(pollInterval);
     }, [fetchMatches]);
 
-    // محرك التايمر المحلي
     useEffect(() => {
         const timerInterval = setInterval(() => {
             setMatchTimers(prev => {
@@ -121,9 +118,7 @@ export default function Matches({ setActiveTab }) {
     };
 
     const handleFinishMatch = async (id) => {
-        // 🛑 تجميد العداد فوراً بمجرد الضغط (حتى قبل التأكيد والسيرفر) 🛑
         toggleMatchTimer(id, false);
-
         const match = matches.find(m => m.id === id || m.Id === id);
         const isKnockout = match.matchType !== "Group" && match.MatchType !== "Group";
         const t1Score = match.team1Score ?? match.Team1Score ?? 0;
@@ -135,7 +130,7 @@ export default function Matches({ setActiveTab }) {
             const t2Name = match.team2?.name || match.team2?.Name || "الفريق الثاني";
             alert("🛑 تنبيه: مباريات خروج المغلوب لا يمكن أن تنتهي بالتعادل! يرجى إدخال نتيجة ضربات الترجيح.");
             const p1 = window.prompt(`⚽ أدخل عدد ضربات الترجيح الناجحة لفريق (${t1Name}):`);
-            if (p1 === null || p1.trim() === "") { toggleMatchTimer(id, true); return; } // لو ألغى نرجع التايمر
+            if (p1 === null || p1.trim() === "") { toggleMatchTimer(id, true); return; }
             const p2 = window.prompt(`⚽ أدخل عدد ضربات الترجيح الناجحة لفريق (${t2Name}):`);
             if (p2 === null || p2.trim() === "") { toggleMatchTimer(id, true); return; }
             const pen1 = parseInt(p1);
@@ -160,7 +155,7 @@ export default function Matches({ setActiveTab }) {
 
         const confirmFinish = window.confirm("هل أنت متأكد من إنهاء المباراة بالنتيجة الحالية؟ 🛑");
         if (!confirmFinish) {
-            toggleMatchTimer(id, true); // إرجاع التايمر لو داس Cancel
+            toggleMatchTimer(id, true); 
             return;
         }
 
@@ -254,22 +249,6 @@ export default function Matches({ setActiveTab }) {
         } catch (error) { alert("حدث خطأ أثناء تجهيز الصورة."); }
     };
 
-    const renderScorers = (scorersString) => {
-        if (!scorersString) return null;
-        const scorersArray = scorersString.split(',').filter(Boolean);
-        if (scorersArray.length === 0) return null;
-        const grouped = scorersArray.reduce((acc, name) => { acc[name] = (acc[name] || 0) + 1; return acc; }, {});
-        return (
-            <div className="flex flex-wrap justify-center gap-1 mt-1.5 text-[10px] sm:text-xs text-green-700 font-bold">
-                {Object.entries(grouped).map(([name, count], idx) => (
-                    <span key={idx} className="bg-green-50 px-1.5 py-0.5 rounded border border-green-200 shadow-sm flex items-center">
-                        {name} <span className="ml-0.5 text-[8px] sm:text-[10px]">{"⚽".repeat(count)}</span>
-                    </span>
-                ))}
-            </div>
-        );
-    };
-
     const activeMatches = matches.filter(m => !(m.isFinished === true || m.IsFinished === true));
     const matchesByRound = activeMatches.reduce((acc, match) => {
         const type = match.matchType || match.MatchType;
@@ -360,7 +339,7 @@ export default function Matches({ setActiveTab }) {
                                                                 <div className="flex items-center gap-2 sm:gap-3 bg-gray-100 text-gray-800 px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-xl sm:text-3xl font-black border-2 border-gray-300 shadow-sm">
                                                                     <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
                                                                 </div>
-                                                                <div className="bg-red-600 text-white px-3 py-0.5 rounded font-mono text-sm sm:text-lg font-black shadow-md animate-pulse border border-red-800 w-full min-w-[80px] text-center">
+                                                                <div className="bg-red-600 text-white px-3 py-0.5 rounded font-mono text-sm sm:text-lg font-black shadow-md border border-red-800 w-full min-w-[80px] text-center">
                                                                     ⏱️ {formatTime(matchTimers[matchId]?.elapsed)}
                                                                 </div>
                                                             </div>
@@ -383,19 +362,13 @@ export default function Matches({ setActiveTab }) {
                                                     </div>
                                                 )}
 
-                                                <div className="flex justify-between items-start w-full px-1 sm:px-4 mt-2 mb-2">
-                                                    <div className="flex-1 flex justify-center text-center">{renderScorers(match.team1Scorers || match.Team1Scorers)}</div>
-                                                    <div className="shrink-0 mx-2 w-[60px] xs:w-[85px] sm:w-[110px]"></div>
-                                                    <div className="flex-1 flex justify-center text-center">{renderScorers(match.team2Scorers || match.Team2Scorers)}</div>
-                                                </div>
-
-                                                {/* 🔥 التايم لاين العمودي المفتوح للجمهور والإدمن 🔥 */}
+                                                {/* 🔥 التايم لاين العمودي (بعد إزالة البوكس وتصغير الأسماء) 🔥 */}
                                                 {match.matchEvents && match.matchEvents.length > 0 && (
                                                     <div className="mt-6 w-full px-2 sm:px-8 bg-gray-50/50 rounded-2xl py-4 border border-gray-100">
                                                         <h4 className="text-center font-black text-gray-500 mb-6 text-sm sm:text-base border-b border-gray-200 pb-2 w-max mx-auto">📜 مجريات المباراة</h4>
                                                         
                                                         <div className="relative w-full max-w-xl mx-auto py-2">
-                                                            <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gray-300 transform -translate-x-1/2 rounded-full"></div>
+                                                            <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gray-200 transform -translate-x-1/2 rounded-full"></div>
 
                                                             {match.matchEvents.sort((a, b) => a.minute - b.minute).map((event, idx) => {
                                                                 const isTeam1 = t1Players.some(p => p.id === event.playerId || p.Id === event.playerId);
@@ -406,21 +379,23 @@ export default function Matches({ setActiveTab }) {
                                                                     <div key={idx} className="flex items-center justify-between w-full mb-6 relative z-10">
                                                                         <div className={`w-1/2 px-2 sm:px-6 flex justify-end ${!isTeam1 && 'invisible'}`}>
                                                                             {isTeam1 && (
-                                                                                <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-800">
+                                                                                // شيلنا البوكس وصغرنا الخط جداً
+                                                                                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-700">
                                                                                     <span>{player?.name || player?.Name}</span>
-                                                                                    <span className="text-sm sm:text-base">{icon}</span>
+                                                                                    <span className="text-[12px] sm:text-xs">{icon}</span>
                                                                                 </div>
                                                                             )}
                                                                         </div>
 
-                                                                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-900 text-yellow-400 font-black flex items-center justify-center border-2 border-white shadow-lg text-[9px] sm:text-[10px] absolute left-1/2 transform -translate-x-1/2">
+                                                                        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-900 text-yellow-400 font-black flex items-center justify-center border-2 border-white shadow-sm text-[8px] sm:text-[9px] absolute left-1/2 transform -translate-x-1/2">
                                                                             {event.minute}'
                                                                         </div>
 
                                                                         <div className={`w-1/2 px-2 sm:px-6 flex justify-start ${isTeam1 && 'invisible'}`}>
                                                                             {!isTeam1 && (
-                                                                                <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-800">
-                                                                                    <span className="text-sm sm:text-base">{icon}</span>
+                                                                                 // شيلنا البوكس وصغرنا الخط جداً
+                                                                                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-700">
+                                                                                    <span className="text-[12px] sm:text-xs">{icon}</span>
                                                                                     <span>{player?.name || player?.Name}</span>
                                                                                 </div>
                                                                             )}
@@ -458,7 +433,7 @@ export default function Matches({ setActiveTab }) {
                                                 {isAdmin && isPlaying && (
                                                     <div className="mt-6 w-full border-t border-gray-100 pt-6 hide-in-screenshot">
                                                         
-                                                        {/* زراير الإيقاف والتشغيل */}
+                                                        {/* زراير الإيقاف والتشغيل للإدمن */}
                                                         <div className="flex flex-col items-center justify-center gap-2 mb-6">
                                                             <span className="text-gray-400 font-bold text-xs sm:text-sm">التحكم السريع في الوقت</span>
                                                             <button onClick={() => toggleMatchTimer(matchId)} className={`px-6 py-2 rounded font-bold text-sm transition shadow-md ${matchTimers[matchId]?.isRunning ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
