@@ -10,6 +10,8 @@ export default function Matches({ setActiveTab }) {
     const [newMatchDate, setNewMatchDate] = useState("");
     const [secondsElapsed, setSecondsElapsed] = useState(0); // العداد بالثواني
     const [isTimerRunning, setIsTimerRunning] = useState(false);
+    const [matchTimers, setMatchTimers] = useState({}); 
+    const [redCardTimers, setRedCardTimers] = useState({});
 
     const fetchMatches = useCallback(() => {
         fetch('/api/Matches')
@@ -20,29 +22,43 @@ export default function Matches({ setActiveTab }) {
 
     // 🔥 التعديل هنا: نظفنا الـ useEffect المتكررة ودمجنا البولينج بشكل سليم
     useEffect(() => {
-        // 1. تشغيل الدالة فوراً أول ما الصفحة تفتح
-        fetchMatches();
+    const interval = setInterval(() => {
+        // 1. تزويد وقت الماتشات الشغالة
+        setMatchTimers(prev => {
+            const newTimers = { ...prev };
+            let updated = false;
+            Object.keys(newTimers).forEach(matchId => {
+                if (newTimers[matchId].isRunning) {
+                    newTimers[matchId] = { ...newTimers[matchId], elapsed: newTimers[matchId].elapsed + 1 };
+                    updated = true;
+                }
+            });
+            return updated ? newTimers : prev;
+        });
 
-        // 2. تحديث صامت في الخلفية كل 3 ثواني (بديل الـ SignalR)
-        const pollingInterval = setInterval(() => {
-            fetchMatches();
-        }, 3000);
-
-        // 3. تنظيف العداد لما اليوزر يخرج من الصفحة
-        return () => clearInterval(pollingInterval);
-    }, [fetchMatches]);
-
-    useEffect(() => {
-    let interval;
-    if (isTimerRunning) {
-        interval = setInterval(() => {
-            setSecondsElapsed(prev => prev + 1);
-        }, 1000);
-    } else {
-        clearInterval(interval);
-    }
+        // 2. تنقيص وقت كروت الطرد (الدقيقتين)
+        setRedCardTimers(prev => {
+            const newRedCards = { ...prev };
+            let updated = false;
+            Object.keys(newRedCards).forEach(key => {
+                if (newRedCards[key] > 0) {
+                    newRedCards[key] -= 1;
+                    updated = true;
+                }
+            });
+            return updated ? newRedCards : prev;
+        });
+    }, 1000);
     return () => clearInterval(interval);
-}, [isTimerRunning]);
+}, []);
+
+// دالة تحويل الثواني لشكل MM:SS
+const formatTime = (totalSeconds) => {
+    if (!totalSeconds || totalSeconds < 0) return "00:00";
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+};
 
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');
@@ -125,18 +141,28 @@ const handleDeleteMatch = async (matchId) => {
     }
 };
 
-    const actionPlayer = async (matchId, playerId, action) => {
+const actionPlayer = async (matchId, playerId, action) => {
     const token = localStorage.getItem('adminToken');
     
-    // حساب الدقيقة الحالية من العداد (لو الثواني 65، يبقى إحنا في الدقيقة 2)
-    const currentMinute = Math.floor(secondsElapsed / 60) + 1;
+    // 1. حساب الدقيقة الحالية من وقت الماتش ده تحديداً (بدل secondsElapsed القديمة)
+    const currentMatchSeconds = matchTimers[matchId]?.elapsed || 0;
+    const currentMinute = Math.floor(currentMatchSeconds / 60) + 1;
 
-    // بعتنا الدقيقة للسيرفر في الرابط عشان تتسجل في التايم لاين
+    // 2. 🔥 تشغيل عداد الطرد (دقيقتين = 120 ثانية) لو الأكشن كان كارت أحمر 🔥
+    if (action === 'red-card') {
+        setRedCardTimers(prev => ({
+            ...prev,
+            [`${matchId}-${playerId}`]: 120
+        }));
+    }
+
+    // 3. بعتنا الدقيقة للسيرفر في الرابط عشان تتسجل في التايم لاين
     await fetch(`/api/Matches/${matchId}/${action}/${playerId}?minute=${currentMinute}`, {
         method: 'PUT', 
         headers: { 'Authorization': `Bearer ${token}` }
     });
     
+    // 4. تحديث الشاشة
     fetchMatches();
 };
 
@@ -318,6 +344,14 @@ const handleDeleteMatch = async (matchId) => {
         console.error("Withdraw Error:", error);
         alert('مشكلة في الاتصال بالسيرفر.');
     }
+};
+
+const toggleMatchTimer = (matchId, forceState = null) => {
+    setMatchTimers(prev => {
+        const current = prev[matchId] || { elapsed: 0, isRunning: false };
+        const newState = forceState !== null ? forceState : !current.isRunning;
+        return { ...prev, [matchId]: { ...current, isRunning: newState } };
+    });
 };
 
     
@@ -604,48 +638,49 @@ const handleDeleteMatch = async (matchId) => {
         
         {/* ========================================================= */}
         {/* ⏱️ لوحة تحكم وقت المباراة والتايم لاين (للإدمن فقط) ⏱️ */}
-        <div className="bg-gray-900 text-white p-4 sm:p-6 rounded-xl shadow-lg mb-8 border-t-4 border-yellow-500 w-full">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-                
-                {/* إعدادات الوقت والعداد */}
-                <div className="flex items-center gap-4 shrink-0">
-                    <div className="bg-black px-4 py-2 sm:px-6 sm:py-3 rounded-lg font-mono text-2xl sm:text-4xl font-black tracking-widest text-yellow-400 shadow-inner">
-                        {Math.floor(secondsElapsed / 60).toString().padStart(2, '0')}:
-                        {(secondsElapsed % 60).toString().padStart(2, '0')}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                        <button 
-                            onClick={() => setIsTimerRunning(!isTimerRunning)} 
-                            className={`px-4 py-2 rounded text-sm sm:text-base font-bold transition shadow-md ${isTimerRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
-                        >
-                            {isTimerRunning ? '⏸️ إيقاف مؤقت' : '▶️ استئناف'}
-                        </button>
-                    </div>
+        <div className="bg-gray-900 text-white p-4 sm:p-6 rounded-xl shadow-lg mb-8 border-t-4 border-yellow-500 w-full flex flex-col md:flex-row gap-6">
+            
+            {/* أزرار التحكم في التايمر */}
+            <div className="flex flex-col items-center justify-center gap-3 shrink-0 bg-gray-800 p-4 rounded-lg border border-gray-700 w-full md:w-1/3">
+                <span className="text-gray-400 font-bold text-sm">التحكم في الوقت</span>
+                <div className="font-mono text-4xl sm:text-5xl font-black text-yellow-400 drop-shadow-md">
+                    {/* بيقرأ الوقت من Object الماتشات عشان لو في كذا ماتش شغالين مع بعض */}
+                    {formatTime(matchTimers[match.id || match.Id]?.elapsed)}
                 </div>
+                <div className="flex gap-2 w-full mt-2">
+                    <button 
+                        onClick={() => toggleMatchTimer(match.id || match.Id)} 
+                        className={`flex-1 py-2 rounded font-bold text-sm sm:text-base transition shadow-md ${matchTimers[match.id || match.Id]?.isRunning ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'}`}
+                    >
+                        {matchTimers[match.id || match.Id]?.isRunning ? '⏸️ إيقاف مؤقت' : '▶️ استئناف الوقت'}
+                    </button>
+                </div>
+            </div>
 
-                {/* 📜 التايم لاين (شريط الأحداث) */}
-                <div className="flex-1 w-full bg-gray-800 rounded-lg p-3 overflow-x-auto whitespace-nowrap border border-gray-700 shadow-inner min-h-[80px]">
-                    <p className="text-xs text-gray-400 font-bold mb-2">📜 أحداث المباراة (التايم لاين):</p>
-                    <div className="flex gap-3">
-                        {(!match.matchEvents || match.matchEvents.length === 0) && (
-                            <span className="text-gray-500 text-sm italic">لم يتم تسجيل أحداث بعد... ⏱️</span>
-                        )}
-                        
-                        {/* ترتيب الأحداث حسب الدقيقة وعرضها */}
-                        {match.matchEvents?.sort((a, b) => a.minute - b.minute).map((event, idx) => {
+            {/* 📜 التايم لاين (شريط الأحداث العمودي) */}
+            {/* لاحظ خلينا الـ overflow-y-auto وحددنا الطول بـ max-h-[180px] عشان السكرول */}
+            <div className="flex-1 w-full bg-gray-800 rounded-lg p-3 border border-gray-700 shadow-inner max-h-[180px] overflow-y-auto custom-scrollbar">
+                <p className="text-xs text-gray-400 font-bold mb-2 sticky top-0 bg-gray-800 z-10 pb-2 border-b border-gray-700">📜 مجريات المباراة:</p>
+                <div className="flex flex-col gap-2 mt-2">
+                    {(!match.matchEvents || match.matchEvents.length === 0) ? (
+                        <span className="text-gray-500 text-sm italic text-center block mt-4">لم يتم تسجيل أحداث بعد... ⏱️</span>
+                    ) : (
+                        /* رتبنا الأحداث من الأحدث للأقدم b.minute - a.minute */
+                        match.matchEvents?.sort((a, b) => b.minute - a.minute).map((event, idx) => {
                             const icon = event.eventType === 'player-goal' ? '⚽' : event.eventType === 'yellow-card' ? '🟨' : '🟥';
-                            // جلب اسم اللاعب من القائمتين
                             const player = [...(t1Players || []), ...(t2Players || [])].find(p => p.id === event.playerId || p.Id === event.playerId);
                             
                             return (
-                                <div key={idx} className="bg-gray-700 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border border-gray-600 shadow-sm">
-                                    <span className="text-yellow-400 font-black">{event.minute}'</span>
-                                    <span>{icon}</span>
-                                    <span className="font-bold">{player?.name || player?.Name || 'لاعب'}</span>
+                                <div key={idx} className="bg-gray-700 px-3 py-2 rounded-md flex items-center justify-between text-sm border border-gray-600 shadow-sm">
+                                    <div className="flex items-center gap-2">
+                                        <span>{icon}</span>
+                                        <span className="font-bold text-white">{player?.name || player?.Name || 'لاعب'}</span>
+                                    </div>
+                                    <span className="text-yellow-400 font-black bg-gray-800 px-2 py-0.5 rounded text-xs">{event.minute}'</span>
                                 </div>
                             );
-                        })}
-                    </div>
+                        })
+                    )}
                 </div>
             </div>
         </div>
@@ -661,7 +696,6 @@ const handleDeleteMatch = async (matchId) => {
                     const playerId = player.id || player.Id;
                     const playerName = player.name || player.Name;
                     
-                    // 🔥 حساب الإحصائيات في الماتش ده فقط من التايم لاين
                     const playerEvents = match.matchEvents?.filter(e => e.playerId === playerId) || [];
                     const goalsThisMatch = playerEvents.filter(e => e.eventType === 'player-goal').length;
                     const yellowsThisMatch = playerEvents.filter(e => e.eventType === 'yellow-card').length;
@@ -675,7 +709,18 @@ const handleDeleteMatch = async (matchId) => {
                                 <span>{playerName}</span>
                                 {goalsThisMatch > 0 && <span className="text-green-700 font-black text-xs bg-green-100 px-1.5 py-0.5 rounded border border-green-300">{goalsThisMatch} ⚽</span>}
                                 {yellowsThisMatch > 0 && <span className="text-yellow-700 font-black text-xs bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300">{yellowsThisMatch} 🟨</span>}
-                                {redsThisMatch > 0 && <span className="text-red-700 font-black text-xs bg-red-100 px-1.5 py-0.5 rounded border border-red-300">طرد 🟥</span>}
+                                
+                                {/* 🔥 الكارت الأحمر وعداد الدقيقتين 🔥 */}
+                                {redsThisMatch > 0 && (
+                                    <span className="flex items-center gap-1 text-red-700 font-black text-xs bg-red-100 px-1.5 py-0.5 rounded border border-red-300">
+                                        طرد 🟥
+                                        {redCardTimers[`${match.id || match.Id}-${playerId}`] > 0 && (
+                                            <span className="bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm animate-pulse font-mono">
+                                                {formatTime(redCardTimers[`${match.id || match.Id}-${playerId}`])}
+                                            </span>
+                                        )}
+                                    </span>
+                                )}
                             </span>
 
                             {/* 🎛️ زراير تحكم الإدمن */}
@@ -696,7 +741,6 @@ const handleDeleteMatch = async (matchId) => {
                     const playerId = player.id || player.Id;
                     const playerName = player.name || player.Name;
                     
-                    // 🔥 حساب الإحصائيات في الماتش ده فقط من التايم لاين
                     const playerEvents = match.matchEvents?.filter(e => e.playerId === playerId) || [];
                     const goalsThisMatch = playerEvents.filter(e => e.eventType === 'player-goal').length;
                     const yellowsThisMatch = playerEvents.filter(e => e.eventType === 'yellow-card').length;
@@ -710,7 +754,18 @@ const handleDeleteMatch = async (matchId) => {
                                 <span>{playerName}</span>
                                 {goalsThisMatch > 0 && <span className="text-green-700 font-black text-xs bg-green-100 px-1.5 py-0.5 rounded border border-green-300">{goalsThisMatch} ⚽</span>}
                                 {yellowsThisMatch > 0 && <span className="text-yellow-700 font-black text-xs bg-yellow-100 px-1.5 py-0.5 rounded border border-yellow-300">{yellowsThisMatch} 🟨</span>}
-                                {redsThisMatch > 0 && <span className="text-red-700 font-black text-xs bg-red-100 px-1.5 py-0.5 rounded border border-red-300">طرد 🟥</span>}
+                                
+                                {/* 🔥 الكارت الأحمر وعداد الدقيقتين 🔥 */}
+                                {redsThisMatch > 0 && (
+                                    <span className="flex items-center gap-1 text-red-700 font-black text-xs bg-red-100 px-1.5 py-0.5 rounded border border-red-300">
+                                        طرد 🟥
+                                        {redCardTimers[`${match.id || match.Id}-${playerId}`] > 0 && (
+                                            <span className="bg-red-600 text-white px-1.5 py-0.5 rounded shadow-sm animate-pulse font-mono">
+                                                {formatTime(redCardTimers[`${match.id || match.Id}-${playerId}`])}
+                                            </span>
+                                        )}
+                                    </span>
+                                )}
                             </span>
 
                             {/* 🎛️ زراير تحكم الإدمن */}
@@ -729,7 +784,7 @@ const handleDeleteMatch = async (matchId) => {
 
         {/* صافرة النهاية */}
         <button onClick={() => {
-            setIsTimerRunning(false); // وقف العداد لما الماتش يخلص
+            toggleMatchTimer(match.id || match.Id, false); // وقف العداد لما الماتش يخلص
             handleFinishMatch(match.id || match.Id);
         }} className="w-64 mx-auto block bg-red-600 text-white px-8 py-3 rounded-xl font-black hover:bg-red-700 transition shadow-lg mt-6">
             صافرة النهاية 🛑
