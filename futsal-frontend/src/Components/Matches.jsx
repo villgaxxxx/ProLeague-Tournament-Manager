@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { toPng } from 'html-to-image';
 
 export default function Matches({ setActiveTab }) {
@@ -12,49 +12,62 @@ export default function Matches({ setActiveTab }) {
     
     const [matchTimers, setMatchTimers] = useState({}); 
     const [redCardTimers, setRedCardTimers] = useState({});
+    
+    // 🔥 حماية جديدة لمنع تداخل الطلبات اللي كانت بتعمل الكراش 🔥
+    const isFetching = useRef(false);
 
-    // دالة جلب المباريات من الباك إند
-    const fetchMatches = useCallback(() => {
-        fetch('/api/Matches')
-            .then(res => res.json())
-            .then(data => {
-                const matchesArray = Array.isArray(data) ? data : data?.$values || [];
-                setMatches(matchesArray);
-                
-                // تحديث حالة العدادات لو الماتش شغال
-                setMatchTimers(prev => {
-                    const newTimers = { ...prev };
-                    matchesArray.forEach(m => {
-                        const mId = m.id || m.Id;
-                        if (m.isPlaying || m.IsPlaying) {
-                            // لو فيه وقت بداية محفوظ في المتصفح، نحسب منه عشان الريفريش ميبوظوش
-                            const savedStart = localStorage.getItem(`match_start_${mId}`);
-                            let elapsed = newTimers[mId]?.elapsed || 0;
-                            if (savedStart) {
-                                elapsed = Math.floor((Date.now() - parseInt(savedStart)) / 1000);
-                            }
-                            newTimers[mId] = { elapsed, isRunning: true };
+    // دالة جلب المباريات الآمنة (بتحمي من الـ Crash)
+    const fetchMatches = useCallback(async () => {
+        if (isFetching.current) return; // لو في طلب شغال، استنى ميضغطش السيرفر
+        isFetching.current = true;
+
+        try {
+            const res = await fetch('/api/Matches');
+            
+            // لو السيرفر رجع إيرور (زي Transaction deadlock)، نرميه عشان منعملش parse لـ JSON غلط
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`Server Error: ${errText}`);
+            }
+
+            const data = await res.json();
+            const matchesArray = Array.isArray(data) ? data : data?.$values || [];
+            setMatches(matchesArray);
+            
+            setMatchTimers(prev => {
+                const newTimers = { ...prev };
+                matchesArray.forEach(m => {
+                    const mId = m.id || m.Id;
+                    if (m.isPlaying || m.IsPlaying) {
+                        const savedStart = localStorage.getItem(`match_start_${mId}`);
+                        let elapsed = newTimers[mId]?.elapsed || 0;
+                        if (savedStart) {
+                            elapsed = Math.floor((Date.now() - parseInt(savedStart)) / 1000);
                         }
-                    });
-                    return newTimers;
+                        newTimers[mId] = { elapsed, isRunning: true };
+                    }
                 });
-            })
-            .catch(err => console.error("Error fetching matches:", err));
+                return newTimers;
+            });
+        } catch (err) {
+            console.warn("⚠️ تم تجاهل خطأ في الجلب عشان الشاشة متعملش كراش:", err.message);
+        } finally {
+            isFetching.current = false;
+        }
     }, []);
 
-    // 🔥 1. جلب البيانات أول مرة + تحديث حي للجمهور كل 3 ثواني 🔥
+    // 1. جلب البيانات وتفعيل اللايف (Polling) كل 5 ثواني عشان نريح السيرفر
     useEffect(() => {
         fetchMatches(); 
         
-        // ده اللي بيرجع اللايف للجمهور من غير ريفريش
         const pollInterval = setInterval(() => {
             fetchMatches();
-        }, 1500);
+        }, 5000);
 
         return () => clearInterval(pollInterval);
     }, [fetchMatches]);
 
-    // 🔥 2. محرك التايمر اللي مبيتأثرش بالريفريش 🔥
+    // 2. محرك التايمر اللي مبيتأثرش بالريفريش
     useEffect(() => {
         const timerInterval = setInterval(() => {
             setMatchTimers(prev => {
@@ -74,7 +87,6 @@ export default function Matches({ setActiveTab }) {
                 return updated ? newTimers : prev;
             });
 
-            // تنقيص كروت الطرد
             setRedCardTimers(prev => {
                 const newRedCards = { ...prev };
                 let updated = false;
@@ -108,7 +120,6 @@ export default function Matches({ setActiveTab }) {
 
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');
-        // حفظ وقت البداية الحقيقي عشان الريفريش ميرستش العداد
         localStorage.setItem(`match_start_${id}`, Date.now().toString()); 
         
         await fetch(`/api/Matches/${id}/start`, {
@@ -142,7 +153,7 @@ export default function Matches({ setActiveTab }) {
             if (!confirmFinish) return;
 
             toggleMatchTimer(id, false);
-            localStorage.removeItem(`match_start_${id}`); // مسح العداد المحفوظ
+            localStorage.removeItem(`match_start_${id}`); 
             const token = localStorage.getItem('adminToken');
             const response = await fetch(`/api/Matches/${id}/finish-knockout`, {
                 method: 'PUT',
@@ -159,7 +170,7 @@ export default function Matches({ setActiveTab }) {
         if (!confirmFinish) return;
 
         toggleMatchTimer(id, false);
-        localStorage.removeItem(`match_start_${id}`); // مسح العداد المحفوظ
+        localStorage.removeItem(`match_start_${id}`); 
         const token = localStorage.getItem('adminToken');
         const response = await fetch(`/api/Matches/${id}/finish`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
@@ -225,7 +236,7 @@ export default function Matches({ setActiveTab }) {
         await fetch(`/api/Matches/${matchId}/${action}/${playerId}?minute=${currentMinute}`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
         });
-        fetchMatches(); // استدعاء فوري لضمان السرعة للإدمن
+        fetchMatches(); 
     };
 
     const handleDownloadRoundImage = async (roundKey) => {
@@ -344,7 +355,6 @@ export default function Matches({ setActiveTab }) {
                                                 )}
 
                                                 <div className="flex justify-between items-center w-full mt-4 px-1 sm:px-4">
-                                                    {/* فريق 1 */}
                                                     <div className="flex flex-col items-center flex-1">
                                                         <span className={`text-sm xs:text-base sm:text-xl md:text-2xl font-black text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
                                                             {match.team1?.name || match.Team1?.Name}
@@ -352,7 +362,6 @@ export default function Matches({ setActiveTab }) {
                                                         {isAdmin && <button onClick={(e) => { e.stopPropagation(); handleWithdraw(matchId, match.team1Id || match.Team1Id, match.team1?.name || match.Team1?.Name); }} className="mt-2 text-[10px] sm:text-xs bg-red-50 text-red-600 px-2 py-1 rounded border border-red-200 hover:bg-red-600 hover:text-white transition shadow-sm hide-in-screenshot">انسحاب 🏃‍♂️</button>}
                                                     </div>
 
-                                                    {/* النتيجة */}
                                                     <div className="shrink-0 mx-2 flex flex-col justify-center items-center">
                                                         {isPlaying ? (
                                                             <div className="flex flex-col items-center gap-1.5 w-full">
@@ -368,7 +377,6 @@ export default function Matches({ setActiveTab }) {
                                                         )}
                                                     </div>
 
-                                                    {/* فريق 2 */}
                                                     <div className="flex flex-col items-center flex-1">
                                                         <span className={`text-sm xs:text-base sm:text-xl md:text-2xl font-black text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
                                                             {match.team2?.name || match.Team2?.Name}
@@ -389,13 +397,13 @@ export default function Matches({ setActiveTab }) {
                                                     <div className="flex-1 flex justify-center text-center">{renderScorers(match.team2Scorers || match.Team2Scorers)}</div>
                                                 </div>
 
-                                                {/* 🔥 التايم لاين العمودي الجديد للجمهور والإدمن 🔥 */}
+                                                {/* 🔥 التايم لاين العمودي المفتوح للجمهور والإدمن 🔥 */}
                                                 {match.matchEvents && match.matchEvents.length > 0 && (
-                                                    <div className="mt-8 w-full px-2 sm:px-8 bg-gray-50/50 rounded-2xl py-4 border border-gray-100">
+                                                    <div className="mt-6 w-full px-2 sm:px-8 bg-gray-50/50 rounded-2xl py-4 border border-gray-100">
                                                         <h4 className="text-center font-black text-gray-500 mb-6 text-sm sm:text-base border-b border-gray-200 pb-2 w-max mx-auto">📜 مجريات المباراة</h4>
                                                         
                                                         <div className="relative w-full max-w-xl mx-auto py-2">
-                                                            {/* الخط العمودي */}
+                                                            {/* الخط العمودي السحري */}
                                                             <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gray-300 transform -translate-x-1/2 rounded-full"></div>
 
                                                             {match.matchEvents.sort((a, b) => a.minute - b.minute).map((event, idx) => {
@@ -406,7 +414,7 @@ export default function Matches({ setActiveTab }) {
                                                                 return (
                                                                     <div key={idx} className="flex items-center justify-between w-full mb-6 relative z-10">
                                                                         
-                                                                        {/* يمين الشاشة (الفريق الأول) */}
+                                                                        {/* فريق اليمين */}
                                                                         <div className={`w-1/2 px-2 sm:px-6 flex justify-end ${!isTeam1 && 'invisible'}`}>
                                                                             {isTeam1 && (
                                                                                 <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-800">
@@ -416,12 +424,12 @@ export default function Matches({ setActiveTab }) {
                                                                             )}
                                                                         </div>
 
-                                                                        {/* الدايرة في المنتصف (الدقيقة) */}
+                                                                        {/* الدايرة اللي بتقطع الخط (الدقيقة) */}
                                                                         <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-900 text-yellow-400 font-black flex items-center justify-center border-2 border-white shadow-lg text-[9px] sm:text-[10px] absolute left-1/2 transform -translate-x-1/2">
                                                                             {event.minute}'
                                                                         </div>
 
-                                                                        {/* يسار الشاشة (الفريق الثاني) */}
+                                                                        {/* فريق الشمال */}
                                                                         <div className={`w-1/2 px-2 sm:px-6 flex justify-start ${isTeam1 && 'invisible'}`}>
                                                                             {!isTeam1 && (
                                                                                 <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-800">
@@ -437,8 +445,7 @@ export default function Matches({ setActiveTab }) {
                                                     </div>
                                                 )}
 
-
-                                                {/* ================= أدوات الإدمن ================= */}
+                                                {/* ================= أدوات الإدمن المتبقية ================= */}
                                                 {isAdmin && !isPlaying && (
                                                     <div className="mt-6 flex flex-col items-center gap-4 w-full justify-center border-t border-gray-100 pt-5 hide-in-screenshot">
                                                         <button onClick={() => handleStartMatch(matchId)} className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-xl font-black hover:shadow-lg transition w-64 text-sm sm:text-base border border-green-700">▶️ بدء المباراة الآن</button>
@@ -463,10 +470,18 @@ export default function Matches({ setActiveTab }) {
 
                                                 {isAdmin && isPlaying && (
                                                     <div className="mt-6 w-full border-t border-gray-100 pt-6 hide-in-screenshot">
-                                                        <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4 text-xs sm:text-sm">لوحة التحكم السريعة وإضافة الأحداث 👇</h4>
+                                                        
+                                                        {/* زراير الإيقاف والتشغيل */}
+                                                        <div className="flex flex-col items-center justify-center gap-2 mb-6">
+                                                            <span className="text-gray-400 font-bold text-xs sm:text-sm">التحكم السريع في الوقت</span>
+                                                            <button onClick={() => toggleMatchTimer(matchId)} className={`px-6 py-2 rounded font-bold text-sm transition shadow-md ${matchTimers[matchId]?.isRunning ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                                                                {matchTimers[matchId]?.isRunning ? '⏸️ إيقاف مؤقت للعداد' : '▶️ استئناف الوقت'}
+                                                            </button>
+                                                        </div>
+
+                                                        <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4 text-xs sm:text-sm">سجل الأهداف والكروت 👇</h4>
                                                         
                                                         <div className="flex flex-col md:flex-row gap-4 w-full">
-                                                            {/* فريق 1 */}
                                                             <div className="flex-1 bg-blue-50/50 p-2 sm:p-4 rounded-xl border border-blue-100 space-y-2 sm:space-y-3">
                                                                 {t1Players.map(player => {
                                                                     const pId = player.id || player.Id;
@@ -482,26 +497,20 @@ export default function Matches({ setActiveTab }) {
                                                                                 {goals > 0 && <span className="text-green-700 bg-green-100 px-1 py-0.5 rounded font-black">{goals} ⚽</span>}
                                                                                 {yellows > 0 && <span className="text-yellow-700 bg-yellow-100 px-1 py-0.5 rounded font-black">{yellows} 🟨</span>}
                                                                                 {reds > 0 && (
-                                                                                    <span className="text-red-700 bg-red-100 px-1 py-0.5 rounded font-black flex items-center gap-1">
-                                                                                        طرد 🟥
-                                                                                        {redCardTimers[`${matchId}-${pId}`] > 0 && (
-                                                                                            <span className="bg-red-600 text-white px-1 rounded shadow-sm animate-pulse font-mono">{formatTime(redCardTimers[`${matchId}-${pId}`])}</span>
-                                                                                        )}
-                                                                                    </span>
+                                                                                    <span className="text-red-700 bg-red-100 px-1 py-0.5 rounded font-black flex items-center gap-1"> طرد 🟥 {redCardTimers[`${matchId}-${pId}`] > 0 && (<span className="bg-red-600 text-white px-1 rounded shadow-sm animate-pulse font-mono">{formatTime(redCardTimers[`${matchId}-${pId}`])}</span>)}</span>
                                                                                 )}
                                                                             </span>
                                                                             <div className="flex gap-1 shrink-0">
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'player-goal')} className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">⚽ جول</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'remove-goal')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">❌ إلغاء</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'yellow-card')} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟨 إنذار</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'red-card')} className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟥 طرد</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'player-goal')} className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">⚽</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'remove-goal')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">❌</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'yellow-card')} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟨</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'red-card')} className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟥</button>
                                                                             </div>
                                                                         </div>
                                                                     );
                                                                 })}
                                                             </div>
 
-                                                            {/* فريق 2 */}
                                                             <div className="flex-1 bg-blue-50/50 p-2 sm:p-4 rounded-xl border border-blue-100 space-y-2 sm:space-y-3">
                                                                 {t2Players.map(player => {
                                                                     const pId = player.id || player.Id;
@@ -517,19 +526,14 @@ export default function Matches({ setActiveTab }) {
                                                                                 {goals > 0 && <span className="text-green-700 bg-green-100 px-1 py-0.5 rounded font-black">{goals} ⚽</span>}
                                                                                 {yellows > 0 && <span className="text-yellow-700 bg-yellow-100 px-1 py-0.5 rounded font-black">{yellows} 🟨</span>}
                                                                                 {reds > 0 && (
-                                                                                    <span className="text-red-700 bg-red-100 px-1 py-0.5 rounded font-black flex items-center gap-1">
-                                                                                        طرد 🟥
-                                                                                        {redCardTimers[`${matchId}-${pId}`] > 0 && (
-                                                                                            <span className="bg-red-600 text-white px-1 rounded shadow-sm animate-pulse font-mono">{formatTime(redCardTimers[`${matchId}-${pId}`])}</span>
-                                                                                        )}
-                                                                                    </span>
+                                                                                    <span className="text-red-700 bg-red-100 px-1 py-0.5 rounded font-black flex items-center gap-1"> طرد 🟥 {redCardTimers[`${matchId}-${pId}`] > 0 && (<span className="bg-red-600 text-white px-1 rounded shadow-sm animate-pulse font-mono">{formatTime(redCardTimers[`${matchId}-${pId}`])}</span>)}</span>
                                                                                 )}
                                                                             </span>
                                                                             <div className="flex gap-1 shrink-0">
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'player-goal')} className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">⚽ جول</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'remove-goal')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">❌ إلغاء</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'yellow-card')} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟨 إنذار</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'red-card')} className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟥 طرد</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'player-goal')} className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">⚽</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'remove-goal')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">❌</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'yellow-card')} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟨</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'red-card')} className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟥</button>
                                                                             </div>
                                                                         </div>
                                                                     );
@@ -552,7 +556,6 @@ export default function Matches({ setActiveTab }) {
                 })
             )}
 
-            {/* بوب أب تتويج البطل 🎉 */}
             {champion && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center text-center p-4 animate-fade-in" dir="rtl">
                     <div className="bg-gradient-to-b from-yellow-400 via-amber-500 to-amber-600 p-1 rounded-3xl shadow-2xl max-w-lg w-full transform scale-100 transition-all animate-bounce-short">
@@ -570,8 +573,6 @@ export default function Matches({ setActiveTab }) {
                             <div className="bg-yellow-500 text-slate-950 font-black text-4xl px-8 py-4 rounded-2xl shadow-xl tracking-wide mb-8 border-2 border-white/50 animate-pulse relative z-10">
                                 👑 {champion} 👑
                             </div>
-                            
-                            <p className="text-lg font-bold text-yellow-300 mb-6 relative z-10">ألف مبروك للاعبين وللجماهير هذا الإنجاز التاريخي! 🎆</p>
                             
                             <button onClick={() => {setChampion(null); setActiveTab('standings');}} className="relative z-10 bg-gradient-to-r from-gray-800 to-gray-700 hover:from-black hover:to-gray-900 text-white font-black px-8 py-3 rounded-xl border border-gray-600 transition shadow-lg w-full cursor-pointer">
                                 إغلاق والعودة للوحة التحكم ✖️
