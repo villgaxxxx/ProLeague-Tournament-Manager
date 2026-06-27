@@ -15,7 +15,7 @@ export default function Matches({ setActiveTab }) {
     
     const isFetching = useRef(false);
 
-    // دالة الجلب مع حل مشكلة التوقيت الـ 180 دقيقة
+    // دالة الجلب المربوطة بالباك إند الذكي
     const fetchMatches = useCallback(async () => {
         if (isFetching.current) return;
         isFetching.current = true;
@@ -35,17 +35,19 @@ export default function Matches({ setActiveTab }) {
                     if (m.isPlaying || m.IsPlaying) {
                         
                         const startTime = m.startTime || m.StartTime;
-                        let elapsed = newTimers[mId]?.elapsed || 0;
+                        const isPaused = m.isTimerPaused || m.IsTimerPaused;
+                        const dbElapsed = m.elapsedSeconds || m.ElapsedSeconds || 0;
                         
-                        if (startTime) {
-                            // 🔥 الحل السحري لمشكلة الـ 180 دقيقة (إجبار البراوزر يقراها توقيت عالمي) 🔥
+                        let currentElapsed = dbElapsed;
+
+                        // لو العداد شغال، نجمع الثواني المحفوظة + الثواني اللي عدت من آخر StartTime
+                        if (!isPaused && startTime) {
                             const utcTime = startTime.endsWith('Z') ? startTime : `${startTime}Z`;
-                            elapsed = Math.floor((Date.now() - new Date(utcTime).getTime()) / 1000);
-                            if (elapsed < 0) elapsed = 0; // أمان إضافي عشان لو الوقت سالب
+                            const diff = Math.floor((Date.now() - new Date(utcTime).getTime()) / 1000);
+                            if (diff > 0) currentElapsed += diff;
                         }
 
-                        const isRunning = newTimers[mId] !== undefined ? newTimers[mId].isRunning : true;
-                        newTimers[mId] = { elapsed, isRunning };
+                        newTimers[mId] = { elapsed: currentElapsed, isRunning: !isPaused };
                     }
                 });
                 return newTimers;
@@ -100,17 +102,31 @@ export default function Matches({ setActiveTab }) {
         return `${m}:${s}`;
     };
 
-    const toggleMatchTimer = (matchId, forceState = null) => {
+    // إيقاف وهمي للعداد عشان لو دوسنا صافرة النهاية الشاشة تقف فوراً
+    const pauseTimerLocally = (matchId) => {
         setMatchTimers(prev => {
             const current = prev[matchId] || { elapsed: 0, isRunning: false };
-            const newState = forceState !== null ? forceState : !current.isRunning;
-            return { ...prev, [matchId]: { ...current, isRunning: newState } };
+            return { ...prev, [matchId]: { ...current, isRunning: false } };
         });
+    };
+
+    // 🔥 دالة الإيقاف/الاستئناف المربوطة بالباك إند 🔥
+    const handleToggleTimer = async (matchId) => {
+        // نعكس الحالة فوراً عند الإدمن عشان يحس بسرعة الاستجابة
+        setMatchTimers(prev => {
+            const current = prev[matchId] || { elapsed: 0, isRunning: false };
+            return { ...prev, [matchId]: { ...current, isRunning: !current.isRunning } };
+        });
+
+        const token = localStorage.getItem('adminToken');
+        await fetch(`/api/Matches/${matchId}/toggle-timer`, {
+            method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
+        });
+        fetchMatches(); // نجيب التأكيد من السيرفر
     };
 
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');
-        toggleMatchTimer(id, true);
         await fetch(`/api/Matches/${id}/start`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -118,7 +134,7 @@ export default function Matches({ setActiveTab }) {
     };
 
     const handleFinishMatch = async (id) => {
-        toggleMatchTimer(id, false);
+        pauseTimerLocally(id); // تجميد فوراً
         const match = matches.find(m => m.id === id || m.Id === id);
         const isKnockout = match.matchType !== "Group" && match.MatchType !== "Group";
         const t1Score = match.team1Score ?? match.Team1Score ?? 0;
@@ -130,16 +146,16 @@ export default function Matches({ setActiveTab }) {
             const t2Name = match.team2?.name || match.team2?.Name || "الفريق الثاني";
             alert("🛑 تنبيه: مباريات خروج المغلوب لا يمكن أن تنتهي بالتعادل! يرجى إدخال نتيجة ضربات الترجيح.");
             const p1 = window.prompt(`⚽ أدخل عدد ضربات الترجيح الناجحة لفريق (${t1Name}):`);
-            if (p1 === null || p1.trim() === "") { toggleMatchTimer(id, true); return; }
+            if (p1 === null || p1.trim() === "") { fetchMatches(); return; }
             const p2 = window.prompt(`⚽ أدخل عدد ضربات الترجيح الناجحة لفريق (${t2Name}):`);
-            if (p2 === null || p2.trim() === "") { toggleMatchTimer(id, true); return; }
+            if (p2 === null || p2.trim() === "") { fetchMatches(); return; }
             const pen1 = parseInt(p1);
             const pen2 = parseInt(p2);
             if (pen1 === pen2) {
-                alert("لا يمكن أن تنتهي ضربات الترجيح بالتعادل!"); toggleMatchTimer(id, true); return;
+                alert("لا يمكن أن تنتهي ضربات الترجيح بالتعادل!"); fetchMatches(); return;
             }
             const confirmFinish = window.confirm(`✅ تأكيد فوز (${pen1 > pen2 ? t1Name : t2Name}) بضربات الترجيح وإنهاء المباراة؟`);
-            if (!confirmFinish) { toggleMatchTimer(id, true); return; }
+            if (!confirmFinish) { fetchMatches(); return; }
 
             const token = localStorage.getItem('adminToken');
             const response = await fetch(`/api/Matches/${id}/finish-knockout`, {
@@ -155,7 +171,7 @@ export default function Matches({ setActiveTab }) {
 
         const confirmFinish = window.confirm("هل أنت متأكد من إنهاء المباراة بالنتيجة الحالية؟ 🛑");
         if (!confirmFinish) {
-            toggleMatchTimer(id, true); 
+            fetchMatches(); // استرجاع التايمر
             return;
         }
 
@@ -362,7 +378,7 @@ export default function Matches({ setActiveTab }) {
                                                     </div>
                                                 )}
 
-                                                {/* 🔥 التايم لاين العمودي (بعد إزالة البوكس وتصغير الأسماء) 🔥 */}
+                                                {/* 🔥 التايم لاين العمودي المفتوح للجمهور والإدمن 🔥 */}
                                                 {match.matchEvents && match.matchEvents.length > 0 && (
                                                     <div className="mt-6 w-full px-2 sm:px-8 bg-gray-50/50 rounded-2xl py-4 border border-gray-100">
                                                         <h4 className="text-center font-black text-gray-500 mb-6 text-sm sm:text-base border-b border-gray-200 pb-2 w-max mx-auto">📜 مجريات المباراة</h4>
@@ -379,8 +395,7 @@ export default function Matches({ setActiveTab }) {
                                                                     <div key={idx} className="flex items-center justify-between w-full mb-6 relative z-10">
                                                                         <div className={`w-1/2 px-2 sm:px-6 flex justify-end ${!isTeam1 && 'invisible'}`}>
                                                                             {isTeam1 && (
-                                                                                // شيلنا البوكس وصغرنا الخط جداً
-                                                                                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-700">
+                                                                                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-700 bg-white px-2 py-1 shadow-sm rounded border border-gray-100">
                                                                                     <span>{player?.name || player?.Name}</span>
                                                                                     <span className="text-[12px] sm:text-xs">{icon}</span>
                                                                                 </div>
@@ -393,8 +408,7 @@ export default function Matches({ setActiveTab }) {
 
                                                                         <div className={`w-1/2 px-2 sm:px-6 flex justify-start ${isTeam1 && 'invisible'}`}>
                                                                             {!isTeam1 && (
-                                                                                 // شيلنا البوكس وصغرنا الخط جداً
-                                                                                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-700">
+                                                                                <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-gray-700 bg-white px-2 py-1 shadow-sm rounded border border-gray-100">
                                                                                     <span className="text-[12px] sm:text-xs">{icon}</span>
                                                                                     <span>{player?.name || player?.Name}</span>
                                                                                 </div>
@@ -433,10 +447,10 @@ export default function Matches({ setActiveTab }) {
                                                 {isAdmin && isPlaying && (
                                                     <div className="mt-6 w-full border-t border-gray-100 pt-6 hide-in-screenshot">
                                                         
-                                                        {/* زراير الإيقاف والتشغيل للإدمن */}
+                                                        {/* زراير الإيقاف والتشغيل المربوطة بالباك إند */}
                                                         <div className="flex flex-col items-center justify-center gap-2 mb-6">
                                                             <span className="text-gray-400 font-bold text-xs sm:text-sm">التحكم السريع في الوقت</span>
-                                                            <button onClick={() => toggleMatchTimer(matchId)} className={`px-6 py-2 rounded font-bold text-sm transition shadow-md ${matchTimers[matchId]?.isRunning ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                                                            <button onClick={() => handleToggleTimer(matchId)} className={`px-6 py-2 rounded font-bold text-sm transition shadow-md border ${matchTimers[matchId]?.isRunning ? 'bg-orange-600 border-orange-700 hover:bg-orange-700 text-white' : 'bg-green-600 border-green-700 hover:bg-green-700 text-white'}`}>
                                                                 {matchTimers[matchId]?.isRunning ? '⏸️ إيقاف مؤقت للعداد' : '▶️ استئناف الوقت'}
                                                             </button>
                                                         </div>
