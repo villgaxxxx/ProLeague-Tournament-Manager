@@ -13,22 +13,16 @@ export default function Matches({ setActiveTab }) {
     const [matchTimers, setMatchTimers] = useState({}); 
     const [redCardTimers, setRedCardTimers] = useState({});
     
-    // 🔥 حماية جديدة لمنع تداخل الطلبات اللي كانت بتعمل الكراش 🔥
     const isFetching = useRef(false);
 
-    // دالة جلب المباريات الآمنة (بتحمي من الـ Crash)
+    // دالة الجلب المجهزة لاستقبال StartTime من الباك إند
     const fetchMatches = useCallback(async () => {
-        if (isFetching.current) return; // لو في طلب شغال، استنى ميضغطش السيرفر
+        if (isFetching.current) return;
         isFetching.current = true;
 
         try {
             const res = await fetch('/api/Matches');
-            
-            // لو السيرفر رجع إيرور (زي Transaction deadlock)، نرميه عشان منعملش parse لـ JSON غلط
-            if (!res.ok) {
-                const errText = await res.text();
-                throw new Error(`Server Error: ${errText}`);
-            }
+            if (!res.ok) throw new Error("Server Error");
 
             const data = await res.json();
             const matchesArray = Array.isArray(data) ? data : data?.$values || [];
@@ -39,35 +33,39 @@ export default function Matches({ setActiveTab }) {
                 matchesArray.forEach(m => {
                     const mId = m.id || m.Id;
                     if (m.isPlaying || m.IsPlaying) {
-                        const savedStart = localStorage.getItem(`match_start_${mId}`);
+                        
+                        // 🔥 الاستعداد لـ StartTime اللي هنعمله في الباك إند 🔥
+                        const startTime = m.startTime || m.StartTime;
                         let elapsed = newTimers[mId]?.elapsed || 0;
-                        if (savedStart) {
-                            elapsed = Math.floor((Date.now() - parseInt(savedStart)) / 1000);
+                        
+                        // لو الباك إند باعت وقت البداية، نحسب الفرق بالثواني عشان الريفريش
+                        if (startTime) {
+                            elapsed = Math.floor((Date.now() - new Date(startTime).getTime()) / 1000);
                         }
-                        newTimers[mId] = { elapsed, isRunning: true };
+
+                        // لو الإدمن عامل إيقاف مؤقت، الريفريش ميشغلوش غصب عنه
+                        const isRunning = newTimers[mId] !== undefined ? newTimers[mId].isRunning : true;
+
+                        newTimers[mId] = { elapsed, isRunning };
                     }
                 });
                 return newTimers;
             });
         } catch (err) {
-            console.warn("⚠️ تم تجاهل خطأ في الجلب عشان الشاشة متعملش كراش:", err.message);
+            console.warn("⚠️ تم تجاهل خطأ في الجلب:", err.message);
         } finally {
             isFetching.current = false;
         }
     }, []);
 
-    // 1. جلب البيانات وتفعيل اللايف (Polling) كل 5 ثواني عشان نريح السيرفر
+    // التحديث التلقائي بدون ما يبوظ الـ Pause
     useEffect(() => {
         fetchMatches(); 
-        
-        const pollInterval = setInterval(() => {
-            fetchMatches();
-        }, 5000);
-
+        const pollInterval = setInterval(() => fetchMatches(), 5000);
         return () => clearInterval(pollInterval);
     }, [fetchMatches]);
 
-    // 2. محرك التايمر اللي مبيتأثرش بالريفريش
+    // محرك التايمر المحلي
     useEffect(() => {
         const timerInterval = setInterval(() => {
             setMatchTimers(prev => {
@@ -75,12 +73,7 @@ export default function Matches({ setActiveTab }) {
                 let updated = false;
                 Object.keys(newTimers).forEach(matchId => {
                     if (newTimers[matchId].isRunning) {
-                        const savedStart = localStorage.getItem(`match_start_${matchId}`);
-                        if (savedStart) {
-                            newTimers[matchId].elapsed = Math.floor((Date.now() - parseInt(savedStart)) / 1000);
-                        } else {
-                            newTimers[matchId].elapsed += 1;
-                        }
+                        newTimers[matchId].elapsed += 1;
                         updated = true;
                     }
                 });
@@ -120,16 +113,17 @@ export default function Matches({ setActiveTab }) {
 
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');
-        localStorage.setItem(`match_start_${id}`, Date.now().toString()); 
-        
+        toggleMatchTimer(id, true);
         await fetch(`/api/Matches/${id}/start`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
         });
-        toggleMatchTimer(id, true);
         fetchMatches();
     };
 
     const handleFinishMatch = async (id) => {
+        // 🛑 تجميد العداد فوراً بمجرد الضغط (حتى قبل التأكيد والسيرفر) 🛑
+        toggleMatchTimer(id, false);
+
         const match = matches.find(m => m.id === id || m.Id === id);
         const isKnockout = match.matchType !== "Group" && match.MatchType !== "Group";
         const t1Score = match.team1Score ?? match.Team1Score ?? 0;
@@ -141,19 +135,17 @@ export default function Matches({ setActiveTab }) {
             const t2Name = match.team2?.name || match.team2?.Name || "الفريق الثاني";
             alert("🛑 تنبيه: مباريات خروج المغلوب لا يمكن أن تنتهي بالتعادل! يرجى إدخال نتيجة ضربات الترجيح.");
             const p1 = window.prompt(`⚽ أدخل عدد ضربات الترجيح الناجحة لفريق (${t1Name}):`);
-            if (p1 === null || p1.trim() === "") return;
+            if (p1 === null || p1.trim() === "") { toggleMatchTimer(id, true); return; } // لو ألغى نرجع التايمر
             const p2 = window.prompt(`⚽ أدخل عدد ضربات الترجيح الناجحة لفريق (${t2Name}):`);
-            if (p2 === null || p2.trim() === "") return;
+            if (p2 === null || p2.trim() === "") { toggleMatchTimer(id, true); return; }
             const pen1 = parseInt(p1);
             const pen2 = parseInt(p2);
             if (pen1 === pen2) {
-                alert("لا يمكن أن تنتهي ضربات الترجيح بالتعادل!"); return;
+                alert("لا يمكن أن تنتهي ضربات الترجيح بالتعادل!"); toggleMatchTimer(id, true); return;
             }
             const confirmFinish = window.confirm(`✅ تأكيد فوز (${pen1 > pen2 ? t1Name : t2Name}) بضربات الترجيح وإنهاء المباراة؟`);
-            if (!confirmFinish) return;
+            if (!confirmFinish) { toggleMatchTimer(id, true); return; }
 
-            toggleMatchTimer(id, false);
-            localStorage.removeItem(`match_start_${id}`); 
             const token = localStorage.getItem('adminToken');
             const response = await fetch(`/api/Matches/${id}/finish-knockout`, {
                 method: 'PUT',
@@ -167,10 +159,11 @@ export default function Matches({ setActiveTab }) {
         }
 
         const confirmFinish = window.confirm("هل أنت متأكد من إنهاء المباراة بالنتيجة الحالية؟ 🛑");
-        if (!confirmFinish) return;
+        if (!confirmFinish) {
+            toggleMatchTimer(id, true); // إرجاع التايمر لو داس Cancel
+            return;
+        }
 
-        toggleMatchTimer(id, false);
-        localStorage.removeItem(`match_start_${id}`); 
         const token = localStorage.getItem('adminToken');
         const response = await fetch(`/api/Matches/${id}/finish`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
@@ -247,7 +240,6 @@ export default function Matches({ setActiveTab }) {
             const originalBg = element.style.backgroundColor;
             const originalPadding = element.style.padding;
             const originalRadius = element.style.borderRadius;
-
             element.style.backgroundColor = '#f8fafc';
             element.style.padding = '20px';
             element.style.borderRadius = '16px';
@@ -403,7 +395,6 @@ export default function Matches({ setActiveTab }) {
                                                         <h4 className="text-center font-black text-gray-500 mb-6 text-sm sm:text-base border-b border-gray-200 pb-2 w-max mx-auto">📜 مجريات المباراة</h4>
                                                         
                                                         <div className="relative w-full max-w-xl mx-auto py-2">
-                                                            {/* الخط العمودي السحري */}
                                                             <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gray-300 transform -translate-x-1/2 rounded-full"></div>
 
                                                             {match.matchEvents.sort((a, b) => a.minute - b.minute).map((event, idx) => {
@@ -413,8 +404,6 @@ export default function Matches({ setActiveTab }) {
 
                                                                 return (
                                                                     <div key={idx} className="flex items-center justify-between w-full mb-6 relative z-10">
-                                                                        
-                                                                        {/* فريق اليمين */}
                                                                         <div className={`w-1/2 px-2 sm:px-6 flex justify-end ${!isTeam1 && 'invisible'}`}>
                                                                             {isTeam1 && (
                                                                                 <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-800">
@@ -424,12 +413,10 @@ export default function Matches({ setActiveTab }) {
                                                                             )}
                                                                         </div>
 
-                                                                        {/* الدايرة اللي بتقطع الخط (الدقيقة) */}
                                                                         <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-900 text-yellow-400 font-black flex items-center justify-center border-2 border-white shadow-lg text-[9px] sm:text-[10px] absolute left-1/2 transform -translate-x-1/2">
                                                                             {event.minute}'
                                                                         </div>
 
-                                                                        {/* فريق الشمال */}
                                                                         <div className={`w-1/2 px-2 sm:px-6 flex justify-start ${isTeam1 && 'invisible'}`}>
                                                                             {!isTeam1 && (
                                                                                 <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-200 flex items-center gap-2 text-[10px] sm:text-xs font-bold text-gray-800">
@@ -445,7 +432,7 @@ export default function Matches({ setActiveTab }) {
                                                     </div>
                                                 )}
 
-                                                {/* ================= أدوات الإدمن المتبقية ================= */}
+                                                {/* ================= أدوات الإدمن ================= */}
                                                 {isAdmin && !isPlaying && (
                                                     <div className="mt-6 flex flex-col items-center gap-4 w-full justify-center border-t border-gray-100 pt-5 hide-in-screenshot">
                                                         <button onClick={() => handleStartMatch(matchId)} className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-xl font-black hover:shadow-lg transition w-64 text-sm sm:text-base border border-green-700">▶️ بدء المباراة الآن</button>
