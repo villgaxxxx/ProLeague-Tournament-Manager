@@ -233,11 +233,30 @@ export default function Matches({ setActiveTab }) {
         const currentMatchSeconds = matchTimers[matchId]?.elapsed || 0;
         const currentMinute = Math.floor(currentMatchSeconds / 60) + 1;
 
-        if (action === 'red-card') {
+        let finalAction = action;
+
+        // 🔥 الذكاء الاصطناعي لاكتشاف الإنذار الثاني 🔥
+        if (action === 'yellow-card') {
+            const match = matches.find(m => (m.id || m.Id) === matchId);
+            const playerEvents = match?.matchEvents || [];
+            
+            // بنشوف اللاعب ده عنده كام كارت أصفر متسجل في الماتش ده
+            const previousYellows = playerEvents.filter(e => e.playerId === playerId && e.eventType === 'yellow-card').length;
+
+            // لو عنده إنذار واحد على الأقل، التاني يتحول لطرد أوتوماتيك
+            if (previousYellows >= 1) {
+                finalAction = 'red-card'; // تحويل الأمر في الخلفية لبطاقة حمراء
+                alert("⚠️ تنبيه إداري: هذا هو الإنذار الثاني للاعب!\nتم تحويله تلقائياً إلى بطاقة حمراء 🟥 وتم تفعيل عداد الـ 2 دقيقة.");
+            }
+        }
+
+        // لو الأكشن طرد (سواء الإدمن داس طرد مباشر، أو السيستم حول الإنذار الثاني)
+        if (finalAction === 'red-card') {
             setRedCardTimers(prev => ({ ...prev, [`${matchId}-${playerId}`]: 120 }));
         }
 
-        await fetch(`/api/Matches/${matchId}/${action}/${playerId}?minute=${currentMinute}`, {
+        // نبعت الأكشن النهائي للباك إند
+        await fetch(`/api/Matches/${matchId}/${finalAction}/${playerId}?minute=${currentMinute}`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
         });
         fetchMatches(); 
