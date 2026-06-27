@@ -235,30 +235,36 @@ export default function Matches({ setActiveTab }) {
 
         let finalAction = action;
 
-        // 🔥 الذكاء الاصطناعي لاكتشاف الإنذار الثاني 🔥
+        // 🔥 التعديل هنا: خلينا البحث مرن جداً عشان يتجنب مشاكل السمول والكابيتال وأنواع الداتا 🔥
         if (action === 'yellow-card') {
-            const match = matches.find(m => (m.id || m.Id) === matchId);
-            const playerEvents = match?.matchEvents || [];
+            // بنجيب الماتش المطابق (== عشان نتجاهل نوع الداتا)
+            const match = matches.find(m => m.id == matchId || m.Id == matchId);
             
-            // بنشوف اللاعب ده عنده كام كارت أصفر متسجل في الماتش ده
-            const previousYellows = playerEvents.filter(e => e.playerId === playerId && e.eventType === 'yellow-card').length;
+            // بنجيب الأحداث (سواء كانت سمول أو كابيتال)
+            const events = match?.matchEvents || match?.MatchEvents || [];
+            
+            // بنعد الإنذارات القديمة للاعب ده في الماتش ده
+            const previousYellows = events.filter(e => 
+                (e.playerId == playerId || e.PlayerId == playerId) && 
+                (e.eventType === 'yellow-card' || e.EventType === 'yellow-card')
+            ).length;
 
-            // لو عنده إنذار واحد على الأقل، التاني يتحول لطرد أوتوماتيك
             if (previousYellows >= 1) {
-                finalAction = 'red-card'; // تحويل الأمر في الخلفية لبطاقة حمراء
+                finalAction = 'red-card';
                 alert("⚠️ تنبيه إداري: هذا هو الإنذار الثاني للاعب!\nتم تحويله تلقائياً إلى بطاقة حمراء 🟥 وتم تفعيل عداد الـ 2 دقيقة.");
             }
         }
 
-        // لو الأكشن طرد (سواء الإدمن داس طرد مباشر، أو السيستم حول الإنذار الثاني)
+        // تشغيل تايمر الـ 2 دقيقة لو الأكشن طرد (سواء مباشر أو تحول من إنذار)
         if (finalAction === 'red-card') {
             setRedCardTimers(prev => ({ ...prev, [`${matchId}-${playerId}`]: 120 }));
         }
 
-        // نبعت الأكشن النهائي للباك إند
+        // نبعت الأكشن النهائي للسيرفر
         await fetch(`/api/Matches/${matchId}/${finalAction}/${playerId}?minute=${currentMinute}`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
         });
+        
         fetchMatches(); 
     };
 
