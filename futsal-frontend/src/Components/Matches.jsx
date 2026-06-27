@@ -251,7 +251,6 @@ export default function Matches({ setActiveTab }) {
 
             if (previousYellows >= 1) {
                 finalAction = 'red-card';
-                alert("⚠️ تنبيه إداري: هذا هو الإنذار الثاني للاعب!\nتم تحويله تلقائياً إلى بطاقة حمراء 🟥 وتم تفعيل عداد الـ 2 دقيقة.");
             }
         }
 
