@@ -15,17 +15,32 @@ export default function Matches({ setActiveTab }) {
     const [matchTimers, setMatchTimers] = useState({}); 
     const [redCardTimers, setRedCardTimers] = useState({});
 
-    // دالة جلب المباريات
+    // دالة جلب المباريات من الباك إند
     const fetchMatches = useCallback(() => {
         fetch('/api/Matches')
             .then(res => res.json())
-            .then(data => setMatches(Array.isArray(data) ? data : data?.$values || []))
+            .then(data => {
+                const matchesArray = Array.isArray(data) ? data : data?.$values || [];
+                setMatches(matchesArray);
+                
+                // لو الماتش لايف والتايمر بتاعه لسه مش متعرف، نفعله
+                setMatchTimers(prev => {
+                    const newTimers = { ...prev };
+                    matchesArray.forEach(m => {
+                        const mId = m.id || m.Id;
+                        if ((m.isPlaying || m.IsPlaying) && !newTimers[mId]) {
+                            newTimers[mId] = { elapsed: 0, isRunning: true };
+                        }
+                    });
+                    return newTimers;
+                });
+            })
             .catch(err => console.error("Error fetching matches:", err));
     }, []);
 
-    // 🔥 التعديل 1: ضفنا fetchMatches() هنا عشان الماتشات تظهر أول ما الصفحة تفتح 🔥
+    // 🔥 جلب البيانات أول ما الصفحة تفتح وتشغيل العدادات 🔥
     useEffect(() => {
-        fetchMatches(); // جلب الداتا فوراً
+        fetchMatches(); // دي اللي كانت ناقصة ومخلية الماتشات مش ظاهرة!
         
         const interval = setInterval(() => {
             // 1. تزويد وقت الماتشات الشغالة
@@ -41,7 +56,7 @@ export default function Matches({ setActiveTab }) {
                 return updated ? newTimers : prev;
             });
 
-            // 2. تنقيص وقت كروت الطرد
+            // 2. تنقيص وقت كروت الطرد (120 ثانية)
             setRedCardTimers(prev => {
                 const newRedCards = { ...prev };
                 let updated = false;
@@ -58,7 +73,7 @@ export default function Matches({ setActiveTab }) {
         return () => clearInterval(interval);
     }, [fetchMatches]);
 
-    // دالة تحويل الثواني لـ MM:SS
+    // تحويل الثواني لـ MM:SS
     const formatTime = (totalSeconds) => {
         if (!totalSeconds || totalSeconds < 0) return "00:00";
         const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
@@ -66,7 +81,7 @@ export default function Matches({ setActiveTab }) {
         return `${m}:${s}`;
     };
 
-    // التحكم في التايمر يدوياً
+    // التحكم في العداد
     const toggleMatchTimer = (matchId, forceState = null) => {
         setMatchTimers(prev => {
             const current = prev[matchId] || { elapsed: 0, isRunning: false };
@@ -75,17 +90,17 @@ export default function Matches({ setActiveTab }) {
         });
     };
 
-    // 🔥 التعديل 2: ربط بدء الماتش بالتايمر 🔥
+    // ▶️ بدء المباراة
     const handleStartMatch = async (id) => {
         const token = localStorage.getItem('adminToken');
         await fetch(`/api/Matches/${id}/start`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
         });
-        toggleMatchTimer(id, true); // تشغيل العداد فوراً
+        toggleMatchTimer(id, true); // شغل التايمر
         fetchMatches();
     };
 
-    // 🔥 التعديل 3: ربط صافرة النهاية بإيقاف التايمر 🔥
+    // 🛑 صافرة النهاية
     const handleFinishMatch = async (id) => {
         const match = matches.find(m => m.id === id || m.Id === id);
         const isKnockout = match.matchType !== "Group" && match.MatchType !== "Group";
@@ -111,7 +126,7 @@ export default function Matches({ setActiveTab }) {
             const confirmFinish = window.confirm(`✅ تأكيد فوز (${winnerName}) بضربات الترجيح وإنهاء المباراة؟`);
             if (!confirmFinish) return;
 
-            toggleMatchTimer(id, false); // إيقاف التايمر
+            toggleMatchTimer(id, false); // وقف التايمر
             const token = localStorage.getItem('adminToken');
             const response = await fetch(`/api/Matches/${id}/finish-knockout`, {
                 method: 'PUT',
@@ -127,7 +142,7 @@ export default function Matches({ setActiveTab }) {
         const confirmFinish = window.confirm("هل أنت متأكد من إنهاء المباراة بالنتيجة الحالية؟ 🛑");
         if (!confirmFinish) return;
 
-        toggleMatchTimer(id, false); // إيقاف التايمر
+        toggleMatchTimer(id, false); // وقف التايمر
         const token = localStorage.getItem('adminToken');
         const response = await fetch(`/api/Matches/${id}/finish`, {
             method: 'PUT', headers: { 'Authorization': `Bearer ${token}` }
@@ -189,12 +204,13 @@ export default function Matches({ setActiveTab }) {
         } catch { alert('مشكلة في الاتصال بالسيرفر.'); }
     };
 
-    // تسجيل الأهداف والكروت
+    // ⚽ تسجيل الأهداف والكروت
     const actionPlayer = async (matchId, playerId, action) => {
         const token = localStorage.getItem('adminToken');
         const currentMatchSeconds = matchTimers[matchId]?.elapsed || 0;
-        const currentMinute = Math.floor(currentMatchSeconds / 60) + 1;
+        const currentMinute = Math.floor(currentMatchSeconds / 60) + 1; // الدقيقة الحالية للتايم لاين
 
+        // 🟥 لو طرد شغل تايمر الـ 120 ثانية (دقيقتين)
         if (action === 'red-card') {
             setRedCardTimers(prev => ({ ...prev, [`${matchId}-${playerId}`]: 120 }));
         }
@@ -205,18 +221,38 @@ export default function Matches({ setActiveTab }) {
         fetchMatches();
     };
 
-    // تجميع المباريات النشطة
-    const activeMatches = matches.filter(m => !(m.isFinished === true || m.IsFinished === true));
-    const matchesByRound = activeMatches.reduce((acc, match) => {
-        const type = match.matchType || match.MatchType;
-        let roundKey = (type !== "Group" && type !== undefined) ? `${type} 🏆` : `الجولة ${match.roundNumber ?? match.RoundNumber ?? 1}`;
-        if (!acc[roundKey]) acc[roundKey] = [];
-        acc[roundKey].push(match);
-        return acc;
-    }, {});
+    // تحميل الصورة 
+    const handleDownloadRoundImage = async (roundKey) => {
+        const elementId = `capture-${roundKey.replace(/\s+/g, '-')}`;
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        try {
+            const originalBg = element.style.backgroundColor;
+            const originalPadding = element.style.padding;
+            const originalRadius = element.style.borderRadius;
 
-    // تحميل الصورة والهدافيين
-    const handleDownloadRoundImage = async (roundKey) => { /* دالة تحميل الصورة زي ما هي */ };
+            element.style.backgroundColor = '#f8fafc';
+            element.style.padding = '20px';
+            element.style.borderRadius = '16px';
+
+            const dataUrl = await toPng(element, {
+                quality: 1.0,
+                pixelRatio: 2,
+                filter: (node) => !node?.classList?.contains('hide-in-screenshot')
+            });
+
+            element.style.backgroundColor = originalBg;
+            element.style.padding = originalPadding;
+            element.style.borderRadius = originalRadius;
+
+            const link = document.createElement('a');
+            link.download = `${roundKey}-مباريات.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (error) { alert("حدث خطأ أثناء تجهيز الصورة."); }
+    };
+
+    // تنسيق الهدافين 
     const renderScorers = (scorersString) => {
         if (!scorersString) return null;
         const scorersArray = scorersString.split(',').filter(Boolean);
@@ -233,12 +269,25 @@ export default function Matches({ setActiveTab }) {
         );
     };
 
+    // تجميع المباريات حسب الجولة (التي لم تنتهي بعد)
+    const activeMatches = matches.filter(m => !(m.isFinished === true || m.IsFinished === true));
+    const matchesByRound = activeMatches.reduce((acc, match) => {
+        const type = match.matchType || match.MatchType;
+        let roundKey = (type !== "Group" && type !== undefined && type !== null) ? `${type} 🏆` : `الجولة ${match.roundNumber ?? match.RoundNumber ?? 1}`;
+        if (!acc[roundKey]) acc[roundKey] = [];
+        acc[roundKey].push(match);
+        return acc;
+    }, {});
+
     return (
         <div className="max-w-5xl mx-auto mt-8 px-4 mb-16" dir="rtl">
             <h2 className="text-3xl font-black text-center mb-10 text-gray-800">جدول مباريات البطولة 🗓️</h2>
 
             {Object.keys(matchesByRound).length === 0 ? (
-                <p className="text-center text-gray-500 font-bold mb-10 text-xl">لا توجد مباريات جارية حالياً.</p>
+                <div className="text-center bg-gray-50 border border-gray-200 p-8 rounded-2xl shadow-sm">
+                    <p className="text-gray-500 font-bold text-xl mb-2">لا توجد مباريات جارية حالياً.</p>
+                    <p className="text-gray-400 text-sm">قم بعمل قرعة وتوليد للمباريات من لوحة التحكم، ثم اضغط على "ترحيل المباريات".</p>
+                </div>
             ) : (
                 Object.keys(matchesByRound).map(roundKey => {
                     const safeId = `capture-${roundKey.replace(/\s+/g, '-')}`;
@@ -253,128 +302,171 @@ export default function Matches({ setActiveTab }) {
                                 </div>
                             )}
 
-                            <div id={safeId} className="p-4 rounded-3xl bg-gray-50/50">
+                            <div id={safeId} className="p-4 rounded-3xl bg-gray-50/50 border border-gray-100 shadow-sm">
                                 <div className="flex items-center justify-center mb-8">
-                                    <h3 className="text-2xl font-black bg-blue-950 text-white px-10 py-3 rounded-full shadow-lg border-4 border-blue-100 flex items-center gap-2">
-                                        {!isNaN(roundKey) ? `⚽ الجولة رقم ${roundKey}` : `🏆 ${roundKey}`}
+                                    <h3 className="text-xl sm:text-2xl font-black bg-blue-950 text-white px-8 py-3 rounded-full shadow-lg border-4 border-blue-100 flex items-center gap-2">
+                                        {!isNaN(roundKey.charAt(0)) ? `⚽ الجولة رقم ${roundKey}` : `🏆 ${roundKey}`}
                                     </h3>
                                 </div>
 
                                 <div className="grid gap-6">
                                     {matchesByRound[roundKey].map(match => {
                                         const matchId = match.id || match.Id;
+                                        const isPlaying = match.isPlaying || match.IsPlaying;
                                         const t1Players = Array.isArray(match.team1?.players) ? match.team1.players : (match.team1?.players?.$values || []);
                                         const t2Players = Array.isArray(match.team2?.players) ? match.team2.players : (match.team2?.players?.$values || []);
-                                        const cardBg = match.isPostponed ? 'bg-gray-100 border-gray-400 opacity-80' : match.isPlaying ? 'bg-white border-red-500 shadow-red-50' : 'bg-white border-blue-500';
+                                        
+                                        // لون كارت الماتش
+                                        const cardBg = match.isPostponed ? 'bg-gray-100 border-gray-300 opacity-90' : 
+                                                       isPlaying ? 'bg-white border-red-500 shadow-xl' : 
+                                                       'bg-white border-blue-400 shadow-md hover:shadow-lg transition';
 
                                         return (
-                                            <div key={matchId} className={`p-6 rounded-xl shadow-lg border-r-8 flex flex-col items-center transition-all relative ${cardBg}`}>
+                                            <div key={matchId} className={`p-4 sm:p-6 rounded-xl border-r-8 flex flex-col items-center relative ${cardBg}`}>
                                                 
+                                                {/* اسم المجموعة لو موجود */}
                                                 {(match.groupName || match.GroupName) && (
-                                                    <div className="absolute top-0 left-0 bg-blue-100 text-blue-800 px-3 py-1 text-xs font-bold rounded-br-lg">المجموعة {match.groupName || match.GroupName}</div>
+                                                    <div className="absolute top-0 left-0 bg-blue-100 text-blue-800 px-3 py-1 text-[10px] sm:text-xs font-bold rounded-br-lg">
+                                                        المجموعة {match.groupName || match.GroupName}
+                                                    </div>
                                                 )}
 
+                                                {/* 🗑️ زرار حذف المباراة للإدمن */}
                                                 {isAdmin && (
-                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteMatch(matchId); }} className="absolute top-8 left-2 bg-red-50 text-red-500 hover:bg-red-600 hover:text-white p-2 rounded-full shadow-sm z-10" title="حذف المباراة">
+                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteMatch(matchId); }} className="absolute top-8 left-2 bg-red-50 text-red-500 hover:bg-red-600 hover:text-white p-2 rounded-full shadow-sm z-10 transition border border-transparent hover:border-red-700 hide-in-screenshot" title="حذف المباراة نهائياً">
                                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                                                     </button>
                                                 )}
 
-                                                <div className="text-sm text-gray-500 mb-2 bg-gray-200 px-4 py-1 rounded-full font-bold mt-2">
-                                                    {match.matchDate && new Date(match.matchDate).getFullYear() > 2001 ? new Date(match.matchDate).toLocaleString('ar-EG', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'لم يتم تحديد الموعد ⏳'}
+                                                {/* تاريخ ووقت المباراة */}
+                                                <div className="text-[10px] sm:text-xs text-gray-500 mb-2 bg-gray-200 px-4 py-1 rounded-full font-bold mt-2 sm:mt-0">
+                                                    {match.matchDate && new Date(match.matchDate).getFullYear() > 2001 
+                                                        ? new Date(match.matchDate).toLocaleString('ar-EG', { weekday: 'long', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                                                        : 'لم يتم تحديد الموعد بعد ⏳'}
                                                 </div>
 
+                                                {/* سبب التأجيل لو مؤجلة */}
                                                 {match.isPostponed && (
-                                                    <div className="bg-red-100 text-red-800 px-4 py-2 rounded-lg font-black mt-2 text-center border border-red-300">🚫 مؤجلة: {match.postponeReason}</div>
+                                                    <div className="bg-red-50 text-red-700 px-4 py-1.5 rounded-lg font-black mt-2 text-center text-xs sm:text-sm border border-red-200 w-full">
+                                                        🚫 المباراة مؤجلة: {match.postponeReason || match.PostponeReason}
+                                                    </div>
                                                 )}
 
-                                                {/* عرض الفرق والنتيجة/التايمر */}
+                                                {/* ================= عرض الفرق والنتيجة (لـ الجمهور) ================= */}
                                                 <div className="flex justify-between items-center w-full mt-4 px-1 sm:px-4">
+                                                    {/* فريق 1 */}
                                                     <div className="flex flex-col items-center flex-1">
-                                                        <span className={`text-base sm:text-xl md:text-2xl font-black text-center ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>{match.team1?.name || match.Team1?.Name}</span>
-                                                        {isAdmin && <button onClick={() => handleWithdraw(matchId, match.team1Id || match.Team1Id, match.team1?.name || match.Team1?.Name)} className="mt-2 text-xs bg-red-50 text-red-600 px-2 py-1 rounded shadow-sm">انسحاب 🏃‍♂️</button>}
+                                                        <span className={`text-sm xs:text-base sm:text-xl md:text-2xl font-black text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
+                                                            {match.team1?.name || match.Team1?.Name}
+                                                        </span>
+                                                        {isAdmin && <button onClick={(e) => { e.stopPropagation(); handleWithdraw(matchId, match.team1Id || match.Team1Id, match.team1?.name || match.Team1?.Name); }} className="mt-2 text-[10px] sm:text-xs bg-red-50 text-red-600 px-2 py-1 rounded border border-red-200 hover:bg-red-600 hover:text-white transition shadow-sm hide-in-screenshot">انسحاب 🏃‍♂️</button>}
                                                     </div>
 
-                                                    <div className="shrink-0 mx-2 flex justify-center">
-                                                        {match.isPlaying ? (
-                                                            <div className="flex flex-col items-center gap-1.5">
+                                                    {/* النتيجة والتايمر في المنتصف */}
+                                                    <div className="shrink-0 mx-2 flex flex-col justify-center items-center">
+                                                        {isPlaying ? (
+                                                            <div className="flex flex-col items-center gap-1.5 w-full">
+                                                                {/* النتيجة */}
                                                                 <div className="flex items-center gap-2 sm:gap-3 bg-gray-100 text-gray-800 px-3 py-1 sm:px-5 sm:py-2 rounded-xl font-mono text-xl sm:text-3xl font-black border-2 border-gray-300 shadow-sm">
                                                                     <span>{match.team1Score ?? 0}</span>:<span>{match.team2Score ?? 0}</span>
                                                                 </div>
                                                                 {/* ⏱️ التايمر الأحمر اللايف */}
-                                                                <div className="bg-red-700 text-white px-3 py-0.5 rounded font-mono text-sm sm:text-lg font-black shadow-md animate-pulse border border-red-900 w-full text-center">
+                                                                <div className="bg-red-600 text-white px-3 py-0.5 rounded font-mono text-sm sm:text-lg font-black shadow-md animate-pulse border border-red-800 w-full min-w-[80px] text-center">
                                                                     ⏱️ {formatTime(matchTimers[matchId]?.elapsed)}
                                                                 </div>
                                                             </div>
                                                         ) : (
-                                                            <span className="text-gray-400 font-black text-sm sm:text-xl bg-gray-200 px-3 py-1 rounded-lg">VS</span>
+                                                            <span className="text-gray-400 font-black text-sm sm:text-xl bg-gray-100 px-4 py-1 rounded-lg border border-gray-200">VS</span>
                                                         )}
                                                     </div>
 
+                                                    {/* فريق 2 */}
                                                     <div className="flex flex-col items-center flex-1">
-                                                        <span className={`text-base sm:text-xl md:text-2xl font-black text-center ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>{match.team2?.name || match.Team2?.Name}</span>
-                                                        {isAdmin && <button onClick={() => handleWithdraw(matchId, match.team2Id || match.Team2Id, match.team2?.name || match.Team2?.Name)} className="mt-2 text-xs bg-red-50 text-red-600 px-2 py-1 rounded shadow-sm">انسحاب 🏃‍♂️</button>}
+                                                        <span className={`text-sm xs:text-base sm:text-xl md:text-2xl font-black text-center break-words px-1 ${match.isPostponed ? 'text-gray-500' : 'text-blue-950'}`}>
+                                                            {match.team2?.name || match.Team2?.Name}
+                                                        </span>
+                                                        {isAdmin && <button onClick={(e) => { e.stopPropagation(); handleWithdraw(matchId, match.team2Id || match.Team2Id, match.team2?.name || match.Team2?.Name); }} className="mt-2 text-[10px] sm:text-xs bg-red-50 text-red-600 px-2 py-1 rounded border border-red-200 hover:bg-red-600 hover:text-white transition shadow-sm hide-in-screenshot">انسحاب 🏃‍♂️</button>}
                                                     </div>
                                                 </div>
 
-                                                {/* مباشر والهدافيين */}
-                                                {match.isPlaying && <div className="mt-4 text-red-600 font-black text-sm flex items-center gap-2 bg-red-50 px-3 py-1 rounded-full"><span className="w-2.5 h-2.5 bg-red-600 rounded-full animate-ping"></span>مباشر</div>}
-                                                <div className="flex justify-between items-start w-full px-1 sm:px-4 mt-2 mb-4">
-                                                    <div className="flex-1 flex justify-center">{renderScorers(match.team1Scorers || match.Team1Scorers)}</div>
-                                                    <div className="shrink-0 mx-2 w-[70px] xs:w-[85px] sm:w-[110px]"></div>
-                                                    <div className="flex-1 flex justify-center">{renderScorers(match.team2Scorers || match.Team2Scorers)}</div>
+                                                {/* علامة مباشر للجمهور */}
+                                                {isPlaying && (
+                                                    <div className="mt-4 text-red-600 font-black text-[10px] sm:text-sm flex items-center gap-2 bg-red-50 px-3 py-1 rounded-full border border-red-200">
+                                                        <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-red-600 rounded-full animate-ping"></span>مباشر
+                                                    </div>
+                                                )}
+
+                                                {/* عرض الهدافيين للجمهور */}
+                                                <div className="flex justify-between items-start w-full px-1 sm:px-4 mt-2 mb-2">
+                                                    <div className="flex-1 flex justify-center text-center">{renderScorers(match.team1Scorers || match.Team1Scorers)}</div>
+                                                    <div className="shrink-0 mx-2 w-[60px] xs:w-[85px] sm:w-[110px]"></div>
+                                                    <div className="flex-1 flex justify-center text-center">{renderScorers(match.team2Scorers || match.Team2Scorers)}</div>
                                                 </div>
 
-                                                {/* 🔥 التعديل 4: زراير بدء الماتش والتأجيل لو الماتش لسه مبدأش 🔥 */}
-                                                {isAdmin && !match.isPlaying && (
-                                                    <div className="mt-6 flex flex-col items-center gap-4 w-full justify-center border-t pt-4 hide-in-screenshot">
-                                                        <button onClick={() => handleStartMatch(matchId)} className="bg-green-600 text-white px-8 py-3 rounded-lg font-black hover:bg-green-700 transition shadow-lg w-64">▶️ بدء المباراة الان</button>
+
+                                                {/* ================= أدوات الإدمن (قبل بدء الماتش) ================= */}
+                                                {isAdmin && !isPlaying && (
+                                                    <div className="mt-6 flex flex-col items-center gap-4 w-full justify-center border-t border-gray-100 pt-5 hide-in-screenshot">
+                                                        <button onClick={() => handleStartMatch(matchId)} className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-xl font-black hover:shadow-lg hover:scale-105 transition w-64 text-sm sm:text-base border border-green-700">
+                                                            ▶️ بدء المباراة الآن
+                                                        </button>
                                                         
                                                         {/* إعدادات التأجيل */}
                                                         {!match.isPostponed && (
                                                             <div className="mt-2 w-full flex justify-center">
                                                                 {postponingMatchId === matchId ? (
                                                                     <div className="bg-yellow-50 border border-yellow-300 p-4 rounded-xl flex flex-col gap-3 animate-fade-in text-right w-full max-w-sm shadow-inner">
-                                                                        <input type="text" placeholder="سبب التأجيل..." value={postponeReason} onChange={(e) => setPostponeReason(e.target.value)} className="p-2 border rounded" />
-                                                                        <input type="datetime-local" value={newMatchDate} onChange={(e) => setNewMatchDate(e.target.value)} className="p-2 border rounded" />
+                                                                        <input type="text" placeholder="سبب التأجيل (مثال: سوء الأحوال الجوية)" value={postponeReason} onChange={(e) => setPostponeReason(e.target.value)} className="p-2 border rounded text-sm" />
+                                                                        <input type="datetime-local" value={newMatchDate} onChange={(e) => setNewMatchDate(e.target.value)} className="p-2 border rounded text-sm" />
                                                                         <div className="flex gap-2">
-                                                                            <button onClick={() => handleConfirmPostpone(matchId)} className="flex-1 bg-yellow-600 text-white font-bold py-2 rounded">حفظ</button>
-                                                                            <button onClick={handleCancelPostpone} className="flex-1 bg-gray-300 font-bold py-2 rounded">إلغاء</button>
+                                                                            <button onClick={() => handleConfirmPostpone(matchId)} className="flex-1 bg-yellow-600 hover:bg-yellow-700 transition text-white font-bold py-2 rounded text-sm">حفظ</button>
+                                                                            <button onClick={handleCancelPostpone} className="flex-1 bg-gray-300 hover:bg-gray-400 transition text-gray-800 font-bold py-2 rounded text-sm">إلغاء</button>
                                                                         </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <button onClick={() => handleStartPostpone(match)} className="bg-yellow-500 text-yellow-900 px-6 py-2 rounded-lg font-bold hover:bg-yellow-600 shadow">⏸️ تأجيل</button>
+                                                                    <button onClick={() => handleStartPostpone(match)} className="bg-yellow-50 text-yellow-700 border border-yellow-300 px-6 py-2 rounded-lg font-bold hover:bg-yellow-100 transition shadow-sm text-xs sm:text-sm">
+                                                                        ⏸️ تأجيل المباراة
+                                                                    </button>
                                                                 )}
                                                             </div>
                                                         )}
                                                     </div>
                                                 )}
 
-                                                {/* ==================== لوحة الإدمن للماتش اللايف ==================== */}
-                                                {isAdmin && match.isPlaying && (
+                                                {/* ================= لوحة الإدمن (للماتش الشغال - Live) ================= */}
+                                                {isAdmin && isPlaying && (
                                                     <div className="mt-6 w-full border-t border-gray-100 pt-6 hide-in-screenshot">
+                                                        
                                                         <div className="bg-gray-900 text-white p-4 sm:p-6 rounded-xl shadow-lg mb-8 border-t-4 border-yellow-500 w-full flex flex-col md:flex-row gap-6">
-                                                            <div className="flex flex-col items-center gap-3 shrink-0 bg-gray-800 p-4 rounded-lg border border-gray-700 w-full md:w-1/3">
-                                                                <span className="text-gray-400 font-bold text-sm">التحكم في الوقت</span>
-                                                                <div className="font-mono text-4xl font-black text-yellow-400">{formatTime(matchTimers[matchId]?.elapsed)}</div>
-                                                                <button onClick={() => toggleMatchTimer(matchId)} className={`w-full py-2 rounded font-bold transition ${matchTimers[matchId]?.isRunning ? 'bg-orange-600' : 'bg-green-600'}`}>
+                                                            
+                                                            {/* التحكم في التايمر */}
+                                                            <div className="flex flex-col items-center justify-center gap-3 shrink-0 bg-gray-800 p-4 rounded-lg border border-gray-700 w-full md:w-1/3">
+                                                                <span className="text-gray-400 font-bold text-xs sm:text-sm">التحكم في الوقت</span>
+                                                                <div className="font-mono text-4xl sm:text-5xl font-black text-yellow-400 drop-shadow-md">
+                                                                    {formatTime(matchTimers[matchId]?.elapsed)}
+                                                                </div>
+                                                                <button onClick={() => toggleMatchTimer(matchId)} className={`w-full mt-2 py-2 rounded font-bold text-sm sm:text-base transition shadow-md ${matchTimers[matchId]?.isRunning ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
                                                                     {matchTimers[matchId]?.isRunning ? '⏸️ إيقاف مؤقت' : '▶️ استئناف الوقت'}
                                                                 </button>
                                                             </div>
 
-                                                            <div className="flex-1 w-full bg-gray-800 rounded-lg p-3 border border-gray-700 max-h-[180px] overflow-y-auto custom-scrollbar">
-                                                                <p className="text-xs text-gray-400 font-bold sticky top-0 bg-gray-800 z-10 pb-2 border-b border-gray-700">📜 مجريات المباراة:</p>
+                                                            {/* 📜 التايم لاين العمودي */}
+                                                            <div className="flex-1 w-full bg-gray-800 rounded-lg p-3 border border-gray-700 shadow-inner max-h-[180px] overflow-y-auto custom-scrollbar">
+                                                                <p className="text-xs text-gray-400 font-bold mb-2 sticky top-0 bg-gray-800 z-10 pb-2 border-b border-gray-700">📜 مجريات المباراة:</p>
                                                                 <div className="flex flex-col gap-2 mt-2">
                                                                     {(!match.matchEvents || match.matchEvents.length === 0) ? (
-                                                                        <span className="text-gray-500 text-sm text-center block mt-4">لم يتم تسجيل أحداث بعد...</span>
+                                                                        <span className="text-gray-500 text-[10px] sm:text-xs italic text-center block mt-4">لم يتم تسجيل أحداث بعد... ⏱️</span>
                                                                     ) : (
                                                                         match.matchEvents?.sort((a, b) => b.minute - a.minute).map((event, idx) => {
                                                                             const icon = event.eventType === 'player-goal' ? '⚽' : event.eventType === 'yellow-card' ? '🟨' : '🟥';
                                                                             const player = [...t1Players, ...t2Players].find(p => p.id === event.playerId || p.Id === event.playerId);
                                                                             return (
-                                                                                <div key={idx} className="bg-gray-700 px-3 py-2 rounded-md flex justify-between text-sm">
-                                                                                    <div className="flex gap-2"><span>{icon}</span><span className="font-bold text-white">{player?.name || player?.Name}</span></div>
-                                                                                    <span className="text-yellow-400 font-black">{event.minute}'</span>
+                                                                                <div key={idx} className="bg-gray-700 px-3 py-2 rounded-md flex items-center justify-between text-[10px] sm:text-xs border border-gray-600 shadow-sm">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span>{icon}</span>
+                                                                                        <span className="font-bold text-gray-100">{player?.name || player?.Name || 'لاعب'}</span>
+                                                                                    </div>
+                                                                                    <span className="text-yellow-400 font-black bg-gray-800 px-1.5 py-0.5 rounded">د{event.minute}</span>
                                                                                 </div>
                                                                             );
                                                                         })
@@ -383,66 +475,91 @@ export default function Matches({ setActiveTab }) {
                                                             </div>
                                                         </div>
 
-                                                        <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4">سجل الأهداف والكروت 👇</h4>
+                                                        {/* زراير الأحداث (كروت وأهداف) */}
+                                                        <h4 className="text-center font-bold text-gray-500 bg-gray-100 py-2 rounded-lg mb-4 text-xs sm:text-sm">سجل الأهداف والكروت 👇</h4>
                                                         <div className="flex flex-col md:flex-row gap-4 w-full">
+                                                            
                                                             {/* فريق 1 */}
-                                                            <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
+                                                            <div className="flex-1 bg-blue-50/50 p-2 sm:p-4 rounded-xl border border-blue-100 space-y-2 sm:space-y-3">
                                                                 {t1Players.map(player => {
                                                                     const pId = player.id || player.Id;
                                                                     const events = match.matchEvents?.filter(e => e.playerId === pId) || [];
                                                                     const goals = events.filter(e => e.eventType === 'player-goal').length;
+                                                                    const yellows = events.filter(e => e.eventType === 'yellow-card').length;
                                                                     const reds = events.filter(e => e.eventType === 'red-card').length;
+
                                                                     return (
-                                                                        <div key={pId} className="flex flex-col xl:flex-row items-center justify-between p-2 bg-white rounded-lg shadow-sm border gap-3">
-                                                                            <span className="font-bold text-sm flex-1 flex flex-wrap gap-1">
-                                                                                {player.name || player.Name}
-                                                                                {goals > 0 && <span className="text-green-700 bg-green-100 px-1 rounded">{goals} ⚽</span>}
+                                                                        <div key={pId} className={`flex flex-col xl:flex-row items-center justify-between p-2 rounded-lg shadow-sm border gap-2 sm:gap-3 ${reds > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
+                                                                            <span className="font-bold text-[10px] sm:text-xs text-gray-800 flex-1 flex flex-wrap gap-1 items-center w-full">
+                                                                                <span>{player.name || player.Name}</span>
+                                                                                {goals > 0 && <span className="text-green-700 bg-green-100 px-1 py-0.5 rounded font-black">{goals} ⚽</span>}
+                                                                                {yellows > 0 && <span className="text-yellow-700 bg-yellow-100 px-1 py-0.5 rounded font-black">{yellows} 🟨</span>}
+                                                                                {/* عداد الطرد */}
                                                                                 {reds > 0 && (
-                                                                                    <span className="text-red-700 bg-red-100 px-1 rounded flex gap-1">
-                                                                                        طرد 🟥 {redCardTimers[`${matchId}-${pId}`] > 0 && <span className="bg-red-600 text-white px-1 rounded animate-pulse">{formatTime(redCardTimers[`${matchId}-${pId}`])}</span>}
+                                                                                    <span className="text-red-700 bg-red-100 px-1 py-0.5 rounded font-black flex items-center gap-1">
+                                                                                        طرد 🟥
+                                                                                        {redCardTimers[`${matchId}-${pId}`] > 0 && (
+                                                                                            <span className="bg-red-600 text-white px-1 rounded shadow-sm animate-pulse font-mono">
+                                                                                                {formatTime(redCardTimers[`${matchId}-${pId}`])}
+                                                                                            </span>
+                                                                                        )}
                                                                                     </span>
                                                                                 )}
                                                                             </span>
                                                                             <div className="flex gap-1 shrink-0">
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'player-goal')} className="bg-green-100 px-2 py-1 rounded text-xs">⚽</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'remove-goal')} className="bg-gray-100 px-2 py-1 rounded text-xs">❌</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'yellow-card')} className="bg-yellow-100 px-2 py-1 rounded text-xs">🟨</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'red-card')} className="bg-red-100 px-2 py-1 rounded text-xs">🟥</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'player-goal')} className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">⚽ جول</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'remove-goal')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">❌ إلغاء</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'yellow-card')} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟨 إنذار</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'red-card')} className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟥 طرد</button>
                                                                             </div>
                                                                         </div>
                                                                     );
                                                                 })}
                                                             </div>
+
                                                             {/* فريق 2 */}
-                                                            <div className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
+                                                            <div className="flex-1 bg-blue-50/50 p-2 sm:p-4 rounded-xl border border-blue-100 space-y-2 sm:space-y-3">
                                                                 {t2Players.map(player => {
                                                                     const pId = player.id || player.Id;
                                                                     const events = match.matchEvents?.filter(e => e.playerId === pId) || [];
                                                                     const goals = events.filter(e => e.eventType === 'player-goal').length;
+                                                                    const yellows = events.filter(e => e.eventType === 'yellow-card').length;
                                                                     const reds = events.filter(e => e.eventType === 'red-card').length;
+
                                                                     return (
-                                                                        <div key={pId} className="flex flex-col xl:flex-row items-center justify-between p-2 bg-white rounded-lg shadow-sm border gap-3">
-                                                                            <span className="font-bold text-sm flex-1 flex flex-wrap gap-1">
-                                                                                {player.name || player.Name}
-                                                                                {goals > 0 && <span className="text-green-700 bg-green-100 px-1 rounded">{goals} ⚽</span>}
+                                                                        <div key={pId} className={`flex flex-col xl:flex-row items-center justify-between p-2 rounded-lg shadow-sm border gap-2 sm:gap-3 ${reds > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
+                                                                            <span className="font-bold text-[10px] sm:text-xs text-gray-800 flex-1 flex flex-wrap gap-1 items-center w-full">
+                                                                                <span>{player.name || player.Name}</span>
+                                                                                {goals > 0 && <span className="text-green-700 bg-green-100 px-1 py-0.5 rounded font-black">{goals} ⚽</span>}
+                                                                                {yellows > 0 && <span className="text-yellow-700 bg-yellow-100 px-1 py-0.5 rounded font-black">{yellows} 🟨</span>}
+                                                                                {/* عداد الطرد */}
                                                                                 {reds > 0 && (
-                                                                                    <span className="text-red-700 bg-red-100 px-1 rounded flex gap-1">
-                                                                                        طرد 🟥 {redCardTimers[`${matchId}-${pId}`] > 0 && <span className="bg-red-600 text-white px-1 rounded animate-pulse">{formatTime(redCardTimers[`${matchId}-${pId}`])}</span>}
+                                                                                    <span className="text-red-700 bg-red-100 px-1 py-0.5 rounded font-black flex items-center gap-1">
+                                                                                        طرد 🟥
+                                                                                        {redCardTimers[`${matchId}-${pId}`] > 0 && (
+                                                                                            <span className="bg-red-600 text-white px-1 rounded shadow-sm animate-pulse font-mono">
+                                                                                                {formatTime(redCardTimers[`${matchId}-${pId}`])}
+                                                                                            </span>
+                                                                                        )}
                                                                                     </span>
                                                                                 )}
                                                                             </span>
                                                                             <div className="flex gap-1 shrink-0">
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'player-goal')} className="bg-green-100 px-2 py-1 rounded text-xs">⚽</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'remove-goal')} className="bg-gray-100 px-2 py-1 rounded text-xs">❌</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'yellow-card')} className="bg-yellow-100 px-2 py-1 rounded text-xs">🟨</button>
-                                                                                <button onClick={() => actionPlayer(matchId, pId, 'red-card')} className="bg-red-100 px-2 py-1 rounded text-xs">🟥</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'player-goal')} className="bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">⚽ جول</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'remove-goal')} className="bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">❌ إلغاء</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'yellow-card')} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border border-yellow-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟨 إنذار</button>
+                                                                                <button onClick={() => actionPlayer(matchId, pId, 'red-card')} className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 px-2 py-1 rounded shadow-sm text-[10px] font-bold transition">🟥 طرد</button>
                                                                             </div>
                                                                         </div>
                                                                     );
                                                                 })}
                                                             </div>
                                                         </div>
-                                                        <button onClick={() => handleFinishMatch(matchId)} className="w-64 mx-auto block bg-red-600 text-white px-8 py-3 rounded-xl font-black hover:bg-red-700 mt-6">صافرة النهاية 🛑</button>
+
+                                                        {/* زرار إنهاء المباراة */}
+                                                        <button onClick={() => handleFinishMatch(matchId)} className="w-full sm:w-64 mx-auto block bg-gradient-to-r from-red-600 to-rose-700 text-white px-8 py-3 rounded-xl font-black hover:shadow-lg transition mt-8 border border-red-800">
+                                                            صافرة النهاية 🛑
+                                                        </button>
                                                     </div>
                                                 )}
                                             </div>
@@ -455,14 +572,31 @@ export default function Matches({ setActiveTab }) {
                 })
             )}
 
-            {/* بوب أب البطل */}
+            {/* بوب أب تتويج البطل 🎉 */}
             {champion && (
-                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-900 text-white p-8 rounded-3xl text-center border-4 border-yellow-500 shadow-2xl">
-                        <div className="text-7xl mb-4 animate-bounce">🏆</div>
-                        <h3 className="text-3xl font-black text-yellow-400 mb-6">بطل البطولة رسمياً</h3>
-                        <div className="bg-yellow-500 text-black text-4xl px-8 py-4 rounded-xl font-black mb-6">👑 {champion} 👑</div>
-                        <button onClick={() => { setChampion(null); setActiveTab('standings'); }} className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-bold">إغلاق ✖️</button>
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center text-center p-4 animate-fade-in" dir="rtl">
+                    <div className="bg-gradient-to-b from-yellow-400 via-amber-500 to-amber-600 p-1 rounded-3xl shadow-2xl max-w-lg w-full transform scale-100 transition-all animate-bounce-short">
+                        <div className="bg-slate-900 text-white rounded-3xl p-8 flex flex-col items-center relative overflow-hidden">
+                            <div className="absolute -inset-10 bg-gradient-to-r from-yellow-500/20 to-amber-500/20 rounded-full blur-xl animate-pulse pointer-events-none"></div>
+                            <span className="absolute top-6 left-6 text-4xl animate-ping pointer-events-none">🎉</span>
+                            <span className="absolute top-6 right-6 text-4xl animate-ping delay-300 pointer-events-none">🎊</span>
+                            <span className="absolute bottom-10 left-10 text-3xl animate-bounce pointer-events-none">✨</span>
+                            <span className="absolute bottom-10 right-10 text-3xl animate-bounce delay-150 pointer-events-none">⚽</span>
+                            
+                            <div className="text-7xl mb-6 bg-amber-500/10 p-6 rounded-full border border-yellow-400/30 animate-spin-slow relative z-10">🏆</div>
+                            <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-200 uppercase tracking-widest mb-2 animate-pulse relative z-10">بطل البطولة رسمياً</h3>
+                            <p className="text-sm text-gray-400 font-bold mb-6 relative z-10">اسدل الستار وانتهت الملحمة الكروية</p>
+                            
+                            <div className="bg-yellow-500 text-slate-950 font-black text-4xl px-8 py-4 rounded-2xl shadow-xl tracking-wide mb-8 border-2 border-white/50 animate-pulse relative z-10">
+                                👑 {champion} 👑
+                            </div>
+                            
+                            <p className="text-lg font-bold text-yellow-300 mb-6 relative z-10">ألف مبروك للاعبين وللجماهير هذا الإنجاز التاريخي! 🎆</p>
+                            
+                            <button onClick={() => {setChampion(null); setActiveTab('standings');}} className="relative z-10 bg-gradient-to-r from-gray-800 to-gray-700 hover:from-black hover:to-gray-900 text-white font-black px-8 py-3 rounded-xl border border-gray-600 transition shadow-lg w-full cursor-pointer">
+                                إغلاق والعودة للوحة التحكم ✖️
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
